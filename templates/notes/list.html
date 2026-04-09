@@ -27,11 +27,16 @@
       {% endif %}
       <div class="note-card-footer">
         <span class="note-card-date">{{ item.note.updated_at|timesince }} ago</span>
-        {% if item.note.workspace %}
-        <span class="note-card-workspace" style="--ws-color: {{ item.note.workspace.color }}">
-          {{ item.note.workspace.name }}
-        </span>
-        {% endif %}
+        <div style="display:flex;align-items:center;gap:0.4rem">
+          {% if item.note.creator != request.user %}
+            <span class="note-card-owner">{{ item.note.creator.display_name }}</span>
+          {% endif %}
+          {% if item.note.workspace %}
+          <span class="note-card-workspace" style="--ws-color: {{ item.note.workspace.color }}">
+            {{ item.note.workspace.name }}
+          </span>
+          {% endif %}
+        </div>
       </div>
     </a>
     {% endfor %}

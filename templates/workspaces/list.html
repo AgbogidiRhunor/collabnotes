@@ -12,30 +12,26 @@
     </div>
   </div>
 
-  {% if workspaces %}
+  {% if owned_workspaces %}
+  <h2 class="section-label">My workspaces</h2>
   <div class="workspace-grid">
-    {% for ws in workspaces %}
+    {% for ws in owned_workspaces %}
     <div class="workspace-card" style="--ws-color: {{ ws.color }}">
+      <a href="{% url 'workspaces:detail' ws.pk %}" class="workspace-card-link">
         <div class="workspace-card-color"></div>
         <div class="workspace-card-body">
-          <a href="{% url 'workspaces:detail' ws.pk %}" class="workspace-card-link">
           <h2 class="workspace-card-name">{{ ws.name }}</h2>
-          </a>
-          {% if ws.description %}
-            <p class="workspace-card-desc">{{ ws.description|truncatechars:80 }}</p>
-          {% endif %}
-          <p class="workspace-card-count">
-            {{ ws.notes.count }} note{{ ws.notes.count|pluralize }}
-          </p>
+          {% if ws.description %}<p class="workspace-card-desc">{{ ws.description|truncatechars:80 }}</p>{% endif %}
+          <p class="workspace-card-count">{{ ws.notes.count }} note{{ ws.notes.count|pluralize }}</p>
         </div>
-      
+      </a>
       <div class="workspace-card-actions">
+        <a href="{% url 'workspaces:share' ws.pk %}" class="btn-ghost btn-sm">Share</a>
         <a href="{% url 'workspaces:edit' ws.pk %}" class="btn-ghost btn-sm">Edit</a>
         <form method="post" action="{% url 'workspaces:delete' ws.pk %}" style="display:inline">
           {% csrf_token %}
-          <button type="submit"
-            class="btn-ghost btn-sm btn-danger-ghost"
-            onclick="return confirm('Delete workspace \'{{ ws.name }}\'? Notes inside will not be deleted.')">
+          <button type="submit" class="btn-ghost btn-sm btn-danger-ghost"
+            onclick="return confirm('Delete \'{{ ws.name }}\'? Notes inside will not be deleted.')">
             Delete
           </button>
         </form>
@@ -43,14 +39,31 @@
     </div>
     {% endfor %}
   </div>
+  {% endif %}
 
-  <a href="{% url 'workspaces:create' %}" class="fab" title="New workspace">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  </a>
+  {% if shared_perms %}
+  <h2 class="section-label" style="margin-top:2rem">Shared with me</h2>
+  <div class="workspace-grid">
+    {% for sp in shared_perms %}
+    <div class="workspace-card" style="--ws-color: {{ sp.workspace.color }}">
+      <a href="{% url 'workspaces:detail' sp.workspace.pk %}" class="workspace-card-link">
+        <div class="workspace-card-color"></div>
+        <div class="workspace-card-body">
+          <h2 class="workspace-card-name">{{ sp.workspace.name }}</h2>
+          <p class="workspace-card-desc">by {{ sp.workspace.owner.display_name }}</p>
+          <p class="workspace-card-count">
+            {{ sp.workspace.notes.count }} note{{ sp.workspace.notes.count|pluralize }}
+            &nbsp;·&nbsp;
+            <span class="role-badge role-badge--{{ sp.role }}">{{ sp.role }}</span>
+          </p>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
-  {% else %}
+  {% if not owned_workspaces and not shared_perms %}
   <div class="empty-state">
     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
@@ -62,4 +75,11 @@
   {% endif %}
 
 </div>
+
+<a href="{% url 'workspaces:create' %}" class="fab" title="New workspace">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+</a>
+
 {% endblock %}

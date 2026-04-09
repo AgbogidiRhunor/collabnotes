@@ -79,7 +79,7 @@ class NoteListView(View):
         })
 
 
-# Note Create
+# Note Create 
 @method_decorator(login_required, name='dispatch')
 class NoteCreateView(View):
     template_name = 'notes/create.html'
@@ -116,7 +116,7 @@ class NoteCreateView(View):
 
 
 
-# Note Detail / Editor
+# Note Detail / Editor 
 @method_decorator(login_required, name='dispatch')
 class NoteDetailView(View):
     template_name = 'notes/detail.html'
@@ -135,6 +135,8 @@ class NoteDetailView(View):
             'perm': perm,
             'form': form,
             'collaborators': collaborators,
+            'owner': note.creator,
+            'is_shared': note.creator != request.user,
         })
 
     def post(self, request, pk):
@@ -167,7 +169,7 @@ class NoteDetailView(View):
         })
 
 
-# Note Delete
+# Note Delete 
 @method_decorator(login_required, name='dispatch')
 class NoteDeleteView(View):
     template_name = 'notes/confirm_delete.html'
@@ -178,8 +180,8 @@ class NoteDeleteView(View):
 
     def post(self, request, pk):
         note, perm = get_note_for_user(pk, request.user, required_role='owner')
-        note.soft_delete()
-        messages.success(request, f'"{note.title}" moved to trash.')
+        note.delete()
+        messages.success(request, f'"{note.title}" has been permanently deleted.')
         return redirect('notes:list')
 
 
@@ -239,8 +241,7 @@ class SaveVersionView(View):
         return redirect('notes:history', pk=note.pk)
 
 
-# Share: create link
-
+# Share: create link 
 @method_decorator(login_required, name='dispatch')
 class NoteShareView(View):
     template_name = 'notes/share.html'

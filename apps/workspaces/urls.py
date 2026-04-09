@@ -9,4 +9,6 @@ urlpatterns = [
     path('<uuid:pk>/', views.WorkspaceDetailView.as_view(), name='detail'),
     path('<uuid:pk>/edit/', views.WorkspaceEditView.as_view(), name='edit'),
     path('<uuid:pk>/delete/', views.WorkspaceDeleteView.as_view(), name='delete'),
+    path('<uuid:pk>/share/', views.WorkspaceShareView.as_view(), name='share'),
+    path('join/<str:token>/', views.WorkspaceJoinView.as_view(), name='join'),
 ]

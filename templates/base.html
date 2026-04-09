@@ -58,5 +58,26 @@
 </main>
 
 {% block extra_scripts %}{% endblock %}
+
+<script>
+(function () {
+  var toggle = document.querySelector('.nav-user .avatar');
+  var dropdown = document.querySelector('.nav-dropdown');
+  if (!toggle || !dropdown) return;
+
+  toggle.addEventListener('click', function (e) {
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+  });
+
+  document.addEventListener('click', function () {
+    dropdown.classList.remove('open');
+  });
+
+  dropdown.addEventListener('click', function (e) {
+    e.stopPropagation();
+  });
+}());
+</script>
 </body>
 </html>

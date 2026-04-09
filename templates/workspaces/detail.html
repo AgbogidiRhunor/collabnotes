@@ -9,21 +9,25 @@
     <div class="workspace-detail-heading">
       <div class="workspace-detail-dot" style="background: {{ workspace.color }}"></div>
       <div>
-        <h1 class="page-title" style="color: {{ workspace.color }}"> {{ workspace.name }}</h1>
+        <h1 class="page-title">{{ workspace.name }}</h1>
         <p class="page-sub">
           <a href="{% url 'workspaces:list' %}">← Workspaces</a>
           &nbsp;·&nbsp;
           {{ notes.count }} note{{ notes.count|pluralize }}
+          {% if is_shared %}&nbsp;·&nbsp; by {{ workspace.owner.display_name }}{% endif %}
         </p>
       </div>
     </div>
+    {% if is_owner %}
     <div style="display:flex;gap:0.5rem">
-      <a href="{% url 'workspaces:edit' workspace.pk %}" class="btn-ghost btn-sm">Edit workspace</a>
+      <a href="{% url 'workspaces:share' workspace.pk %}" class="btn-ghost btn-sm">Share</a>
+      <a href="{% url 'workspaces:edit' workspace.pk %}" class="btn-ghost btn-sm">Edit</a>
     </div>
+    {% endif %}
   </div>
 
   {% if workspace.description %}
-  <p class="workspace-detail-desc" style="margin-bottom: 24px;">{{ workspace.description }}</p>
+  <p class="workspace-detail-desc">{{ workspace.description }}</p>
   {% endif %}
 
   {% if notes %}
@@ -45,11 +49,13 @@
     {% endfor %}
   </div>
 
-  <a href="{% url 'notes:create' %}?workspace={{ workspace.pk }}" class="fab" title="New note in this workspace">
+  {% if is_owner or role == 'editor' %}
+  <a href="{% url 'notes:create' %}?workspace={{ workspace.pk }}" class="fab" title="New note">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
     </svg>
   </a>
+  {% endif %}
 
   {% else %}
   <div class="empty-state">
@@ -60,8 +66,12 @@
       <line x1="18" y1="38" x2="34" y2="38" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
     </svg>
     <h2>No notes in this workspace</h2>
+    {% if is_owner or role == 'editor' %}
     <p>Create a note and it will appear here.</p>
     <a href="{% url 'notes:create' %}?workspace={{ workspace.pk }}" class="btn-primary">New note</a>
+    {% else %}
+    <p>No notes have been added yet.</p>
+    {% endif %}
   </div>
   {% endif %}
 

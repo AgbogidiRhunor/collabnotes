@@ -1,18 +1,9 @@
-"""
-NoteConsumer — Real-time collaborative editing via Django Channels.
-
-Flow:
-  1. User opens a note detail page → browser connects to ws/notes/<pk>/
-  2. Consumer verifies the user has at least viewer permission (from DB)
-  3. Editor users can send content updates; viewer users are read-only
-  4. Any content update is broadcast to all other users in the same room
-  5. On disconnect the latest content is saved to the database
-"""
-
 import json
 import logging
+import bleach
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.conf import settings
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -20,19 +11,15 @@ logger = logging.getLogger(__name__)
 
 class NoteConsumer(AsyncWebsocketConsumer):
 
-    # ── Connection ────────────────────────────────────────────────────────────
-
     async def connect(self):
         self.note_id = self.scope['url_route']['kwargs']['note_id']
         self.room_group = f'note_{self.note_id}'
         self.user = self.scope['user']
 
-        # Reject unauthenticated connections immediately
         if not self.user.is_authenticated:
             await self.close(code=4001)
             return
 
-        # Check the user has at least viewer access
         self.permission = await self._get_permission()
         if self.permission is None:
             await self.close(code=4003)
@@ -41,7 +28,6 @@ class NoteConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group, self.channel_name)
         await self.accept()
 
-        # Tell everyone else this user joined
         await self.channel_layer.group_send(self.room_group, {
             'type': 'user_joined',
             'user_id': str(self.user.id),
@@ -52,17 +38,12 @@ class NoteConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if not self.user.is_authenticated:
             return
-
         await self.channel_layer.group_discard(self.room_group, self.channel_name)
-
-        # Tell everyone this user left
         await self.channel_layer.group_send(self.room_group, {
             'type': 'user_left',
             'user_id': str(self.user.id),
             'display_name': self.user.display_name,
         })
-
-    # ── Receive from browser ──────────────────────────────────────────────────
 
     async def receive(self, text_data):
         try:
@@ -75,20 +56,14 @@ class NoteConsumer(AsyncWebsocketConsumer):
 
         if msg_type == 'content_update':
             await self._handle_content_update(data)
-
         elif msg_type == 'title_update':
             await self._handle_title_update(data)
-
         elif msg_type == 'cursor':
             await self._handle_cursor(data)
-
         elif msg_type == 'ping':
             await self.send(text_data=json.dumps({'type': 'pong'}))
 
-    # ── Message handlers ──────────────────────────────────────────────────────
-
     async def _handle_content_update(self, data):
-        """Editor sends full note content; server saves and broadcasts."""
         if not self.permission.can_edit:
             await self._send_error('You only have viewer access to this note.')
             return
@@ -96,9 +71,6 @@ class NoteConsumer(AsyncWebsocketConsumer):
         content = str(data.get('content', ''))
         title = str(data.get('title', '')).strip()[:500]
 
-        # Sanitise on the server — never trust the client
-        import bleach
-        from django.conf import settings
         clean_content = bleach.clean(
             content,
             tags=settings.BLEACH_ALLOWED_TAGS,
@@ -106,10 +78,15 @@ class NoteConsumer(AsyncWebsocketConsumer):
             strip=True,
         )
 
-        # Persist to the database
         await self._save_note(title, clean_content)
 
-        # Broadcast the clean content to all OTHER users in the room
+        # Confirm save to the sender
+        await self.send(text_data=json.dumps({
+            'type': 'saved',
+            'timestamp': timezone.now().isoformat(),
+        }))
+
+        # Broadcast updated content to all OTHER users in the room
         await self.channel_layer.group_send(self.room_group, {
             'type': 'broadcast_content',
             'content': clean_content,
@@ -130,7 +107,6 @@ class NoteConsumer(AsyncWebsocketConsumer):
         })
 
     async def _handle_cursor(self, data):
-        """Broadcast cursor position so collaborators see where others are."""
         await self.channel_layer.group_send(self.room_group, {
             'type': 'broadcast_cursor',
             'user_id': str(self.user.id),
@@ -140,16 +116,9 @@ class NoteConsumer(AsyncWebsocketConsumer):
             'sender_channel': self.channel_name,
         })
 
-    # ── Group event handlers (called by channel layer) ────────────────────────
-
     async def broadcast_content(self, event):
-        """Deliver content update to this specific client (skip the sender)."""
+        # Skip the sender — they already got the 'saved' confirmation
         if event['sender_channel'] == self.channel_name:
-            # Confirm save back to sender
-            await self.send(text_data=json.dumps({
-                'type': 'saved',
-                'timestamp': timezone.now().isoformat(),
-            }))
             return
 
         await self.send(text_data=json.dumps({
@@ -193,8 +162,6 @@ class NoteConsumer(AsyncWebsocketConsumer):
             'display_name': event['display_name'],
         }))
 
-    # ── Database helpers ──────────────────────────────────────────────────────
-
     @database_sync_to_async
     def _get_permission(self):
         from .models import NotePermission
@@ -226,8 +193,6 @@ class NoteConsumer(AsyncWebsocketConsumer):
             title=title,
             updated_at=timezone.now(),
         )
-
-    # ── Helpers ───────────────────────────────────────────────────────────────
 
     async def _send_error(self, message):
         await self.send(text_data=json.dumps({

@@ -1,26 +1,23 @@
 (function () {
   'use strict';
 
-  /* Read config from the page */
   const noteMeta    = document.querySelector('meta[name="note-id"]');
   const canEditMeta = document.querySelector('meta[name="can-edit"]');
-
-  if (!noteMeta) return;   // Not on an editor page — do nothing
+  if (!noteMeta) return;
 
   const NOTE_ID  = noteMeta.getAttribute('content');
   const CAN_EDIT = canEditMeta && canEditMeta.getAttribute('content') === 'true';
 
-  /* DOM references */
   const editorEl      = document.getElementById('note-editor');
   const titleEl       = document.getElementById('note-title');
   const hiddenContent = document.getElementById('note-content-hidden');
   const noteForm      = document.getElementById('note-form');
   const saveStatus    = document.getElementById('save-status');
   const collabBar     = document.getElementById('collab-avatars');
+  const lastEditorEl  = document.getElementById('last-editor');
 
   if (!editorEl) return;
 
-  /* Helpers */
   function debounce(fn, ms) {
     let t;
     return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
@@ -29,41 +26,48 @@
   function setStatus(text, cls) {
     if (!saveStatus) return;
     saveStatus.textContent = text;
-    saveStatus.className   = 'save-status ' + (cls || '');
+    saveStatus.className = 'save-status' + (cls ? ' ' + cls : '');
   }
 
-  /* Sync contenteditable → hidden textarea before POST */
+  function setLastEditor(name) {
+    if (!lastEditorEl) return;
+    if (name) {
+      lastEditorEl.textContent = name + ' is editing';
+      lastEditorEl.style.display = 'inline';
+    } else {
+      lastEditorEl.textContent = '';
+      lastEditorEl.style.display = 'none';
+    }
+  }
+
+  // Sync contenteditable → hidden textarea before form POST (fallback save)
   if (noteForm) {
     noteForm.addEventListener('submit', function () {
       if (hiddenContent) hiddenContent.value = editorEl.innerHTML;
     });
   }
 
-  /* Format toolbar */
+  // Format toolbar
   document.querySelectorAll('.fmt-btn[data-cmd]').forEach(function (btn) {
     btn.addEventListener('mousedown', function (e) {
-      e.preventDefault();                          // Keep focus in editor
-      const cmd = btn.dataset.cmd;
-      const val = btn.dataset.val || null;
-      document.execCommand(cmd, false, val);
+      e.preventDefault();
+      document.execCommand(btn.dataset.cmd, false, btn.dataset.val || null);
       editorEl.focus();
       syncToolbarState();
     });
   });
 
   function syncToolbarState() {
-    ['bold', 'italic', 'underline', 'strikeThrough',
-     'insertUnorderedList', 'insertOrderedList'].forEach(function (cmd) {
-      const btn = document.querySelector('.fmt-btn[data-cmd="' + cmd + '"]');
-      if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
-    });
+    ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList']
+      .forEach(function (cmd) {
+        const btn = document.querySelector('.fmt-btn[data-cmd="' + cmd + '"]');
+        if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
+      });
   }
 
   if (CAN_EDIT) {
-    editorEl.addEventListener('keyup',  syncToolbarState);
+    editorEl.addEventListener('keyup', syncToolbarState);
     editorEl.addEventListener('mouseup', syncToolbarState);
-
-    // Keyboard shortcuts
     editorEl.addEventListener('keydown', function (e) {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key === 'b') { e.preventDefault(); document.execCommand('bold'); }
@@ -72,7 +76,7 @@
     });
   }
 
-  /* WebSocket */
+  // WebSocket
   const WS_RECONNECT_BASE = 1500;
   const WS_RECONNECT_MAX  = 30000;
   const SEND_DEBOUNCE_MS  = 600;
@@ -80,6 +84,7 @@
   let socket           = null;
   let reconnectAttempt = 0;
   let reconnectTimer   = null;
+  let wsConnected      = false;
 
   function wsUrl() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -90,73 +95,80 @@
     socket = new WebSocket(wsUrl());
 
     socket.onopen = function () {
+      wsConnected = true;
       reconnectAttempt = 0;
       clearTimeout(reconnectTimer);
-      if (CAN_EDIT) {
-        setStatus('Connected', '');
-      }
+      // Only update status if user can edit — viewers just silently connect
+      if (CAN_EDIT) setStatus('All changes saved', '');
     };
 
     socket.onmessage = function (ev) {
-      try {
-        handleMessage(JSON.parse(ev.data));
-      } catch (_) {}
+      try { handleMessage(JSON.parse(ev.data)); } catch (_) {}
     };
 
     socket.onclose = function (ev) {
-      // 4001 = unauthenticated, 4003 = unauthorised — don't retry
+      wsConnected = false;
       if (ev.code === 4001 || ev.code === 4003) {
         setStatus('Not authorised', 'error');
         return;
       }
-      setStatus('Reconnecting…', 'error');
+      // Don't show reconnecting if we haven't connected yet (e.g. runserver without daphne)
+      if (reconnectAttempt > 0 && CAN_EDIT) {
+        setStatus('Reconnecting…', 'error');
+      }
       reconnectAttempt++;
-      const delay = Math.min(
-        WS_RECONNECT_BASE * Math.pow(1.5, reconnectAttempt - 1),
-        WS_RECONNECT_MAX
-      );
+      const delay = Math.min(WS_RECONNECT_BASE * Math.pow(1.5, reconnectAttempt - 1), WS_RECONNECT_MAX);
       reconnectTimer = setTimeout(connect, delay);
     };
 
-    socket.onerror = function () {
-      /* onclose fires right after — handled there */
-    };
+    socket.onerror = function () { /* onclose handles it */ };
   }
 
   function sendMsg(obj) {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(obj));
+      return true;
     }
+    return false;
   }
 
-  /* Incoming message handler */
   function handleMessage(msg) {
     switch (msg.type) {
 
+      case 'saved':
+        // Server confirmed our save
+        setStatus('Saved', 'saved');
+        setTimeout(function () {
+          if (saveStatus && saveStatus.classList.contains('saved')) {
+            setStatus('All changes saved', '');
+          }
+        }, 2000);
+        break;
+
       case 'content_update':
-        // Another user edited — update our editor without losing our own cursor
+        // Another user saved — update our view
+        if (msg.updated_by) setLastEditor(msg.updated_by);
+        // Clear "editing" indicator after 3s of no updates
+        clearTimeout(window._lastEditorTimer);
+        window._lastEditorTimer = setTimeout(function () { setLastEditor(null); }, 3000);
+
         if (document.activeElement !== editorEl) {
           editorEl.innerHTML = msg.content;
         } else {
-          // User is currently typing: apply carefully to avoid cursor jump
           applyRemoteContent(msg.content);
         }
         if (msg.title && titleEl && document.activeElement !== titleEl) {
           titleEl.value = msg.title;
         }
-        setStatus('Up to date', '');
+        // Update note title in browser tab too
+        if (msg.title) document.title = msg.title + ' — CollabNotes';
         break;
 
       case 'title_update':
         if (msg.title && titleEl && document.activeElement !== titleEl) {
           titleEl.value = msg.title;
+          document.title = msg.title + ' — CollabNotes';
         }
-        break;
-
-      case 'saved':
-        setStatus('Saved', 'saved');
-        // Reset to "All changes saved" after 2 s
-        setTimeout(function () { setStatus('All changes saved', ''); }, 2000);
         break;
 
       case 'user_joined':
@@ -165,6 +177,7 @@
 
       case 'user_left':
         removeCollabAvatar(msg.user_id);
+        // Clear their editing indicator if it was them
         break;
 
       case 'error':
@@ -173,21 +186,11 @@
     }
   }
 
-  /**
-   * Apply remote HTML without moving the cursor if the user is mid-type.
-   * Simple strategy: only update if the content actually changed.
-   */
   function applyRemoteContent(html) {
-    if (editorEl.innerHTML !== html) {
-      const sel = window.getSelection();
-      // Save caret position as text offset
-      const offset = getCaretOffset(editorEl);
-      editorEl.innerHTML = html;
-      // Restore caret approximately
-      if (sel && offset !== null) {
-        setCaretOffset(editorEl, offset);
-      }
-    }
+    if (editorEl.innerHTML === html) return;
+    const offset = getCaretOffset(editorEl);
+    editorEl.innerHTML = html;
+    if (offset !== null) setCaretOffset(editorEl, offset);
   }
 
   function getCaretOffset(container) {
@@ -218,18 +221,23 @@
     }
   }
 
-  /* Send content on editor input (debounced) */
+  // Send content on input (debounced)
   if (CAN_EDIT) {
     const sendContent = debounce(function () {
-      setStatus('Saving…', 'saving');
-      sendMsg({
+      const sent = sendMsg({
         type:    'content_update',
         content: editorEl.innerHTML,
         title:   titleEl ? titleEl.value : '',
       });
+      // Only show "Saving…" if WS actually sent — otherwise content saves on form submit
+      if (sent) setStatus('Saving…', 'saving');
     }, SEND_DEBOUNCE_MS);
 
-    editorEl.addEventListener('input', sendContent);
+    editorEl.addEventListener('input', function () {
+      // Show "Saving…" immediately on keypress so user gets instant feedback
+      if (wsConnected) setStatus('Saving…', 'saving');
+      sendContent();
+    });
 
     const sendTitle = debounce(function () {
       sendMsg({ type: 'title_update', title: titleEl.value });
@@ -237,34 +245,30 @@
 
     if (titleEl) {
       titleEl.addEventListener('input', function () {
+        if (wsConnected) setStatus('Saving…', 'saving');
         sendTitle();
-        setStatus('Saving…', 'saving');
       });
     }
   }
 
-  /* Collaborator avatars */
-  const AVATAR_COLORS = [
-    '#c8a97a','#6fcf97','#56b4e9','#bb8fce',
-    '#f08080','#85c1e9','#f7dc6f','#98d8c8',
-  ];
+  // Collaborator avatars
+  const AVATAR_COLORS = ['#c8a97a','#6fcf97','#56b4e9','#bb8fce','#f08080','#85c1e9','#f7dc6f','#98d8c8'];
 
   function colorForId(id) {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = id.charCodeAt(i) + ((h << 5) - h);
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
   }
 
   function addCollabAvatar(userId, displayName, initials) {
-    if (!collabBar) return;
-    if (collabBar.querySelector('[data-uid="' + userId + '"]')) return;
-    const el       = document.createElement('span');
-    el.className   = 'avatar avatar--sm';
+    if (!collabBar || collabBar.querySelector('[data-uid="' + userId + '"]')) return;
+    const el = document.createElement('span');
+    el.className = 'avatar avatar--sm';
     el.dataset.uid = userId;
-    el.title       = displayName;
+    el.title = displayName;
     el.textContent = initials || displayName.slice(0, 2).toUpperCase();
     el.style.background = colorForId(userId);
-    el.style.color      = '#111113';
+    el.style.color = '#111113';
     collabBar.appendChild(el);
   }
 
@@ -274,16 +278,12 @@
     if (el) el.remove();
   }
 
-  /* Bootstrap */
   connect();
 
-  // Keep-alive ping every 25 s
   setInterval(function () { sendMsg({ type: 'ping' }); }, 25000);
 
-  // On page unload, try to flush content via sendBeacon
   window.addEventListener('beforeunload', function () {
-    if (CAN_EDIT && navigator.sendBeacon) {
-      // POST the form data so Django saves it even if WS is closing
+    if (CAN_EDIT && noteForm && navigator.sendBeacon) {
       const fd = new FormData(noteForm);
       fd.set('content', editorEl.innerHTML);
       navigator.sendBeacon(noteForm.action, fd);

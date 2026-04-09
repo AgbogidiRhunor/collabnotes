@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Share — {{ workspace.name }} — CollabNotes{% endblock %}
+{% block nav_workspaces %}active{% endblock %}
+
+{% block content %}
+<div class="page-wrap page-wrap--narrow">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Share workspace</h1>
+      <p class="page-sub"><a href="{% url 'workspaces:detail' workspace.pk %}">← {{ workspace.name }}</a></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Members</h2></div>
+    <div class="card-body">
+      <ul class="collab-list">
+        <li class="collab-row">
+          <span class="avatar avatar--sm">{{ workspace.owner.get_initials }}</span>
+          <div class="collab-info">
+            <span class="collab-name">{{ workspace.owner.display_name }} <span class="you-tag">(owner)</span></span>
+            <span class="collab-email">{{ workspace.owner.email }}</span>
+          </div>
+          <span class="role-badge role-badge--owner">Owner</span>
+        </li>
+        {% for m in members %}
+        <li class="collab-row">
+          <span class="avatar avatar--sm">{{ m.user.get_initials }}</span>
+          <div class="collab-info">
+            <span class="collab-name">{{ m.user.display_name }}</span>
+            <span class="collab-email">{{ m.user.email }}</span>
+          </div>
+          <form method="post" action="{% url 'workspaces:share' workspace.pk %}" class="inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="change_role" />
+            <input type="hidden" name="user_id" value="{{ m.user.id }}" />
+            <select name="role" class="select-input select-input--sm" onchange="this.form.submit()">
+              <option value="editor" {% if m.role == 'editor' %}selected{% endif %}>Editor</option>
+              <option value="viewer" {% if m.role == 'viewer' %}selected{% endif %}>Viewer</option>
+            </select>
+          </form>
+          <form method="post" action="{% url 'workspaces:share' workspace.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="remove_member" />
+            <input type="hidden" name="user_id" value="{{ m.user.id }}" />
+            <button type="submit" class="btn-ghost btn-sm btn-danger-ghost">Remove</button>
+          </form>
+        </li>
+        {% empty %}
+        <li style="padding:0.5rem 0;color:var(--text-muted);font-size:0.875rem">No members yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Invite by email</h2>
+      <p class="card-sub">The person must already have a CollabNotes account.</p>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{% url 'workspaces:share' workspace.pk %}" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="invite_email" />
+        <div class="inline-fields">
+          {% include 'includes/form_field.html' with field=invite_form.email %}
+          {% include 'includes/form_field.html' with field=invite_form.role %}
+          <button type="submit" class="btn-primary">Invite</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Share via link</h2>
+      <p class="card-sub">Anyone with this link can access the workspace.</p>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{% url 'workspaces:share' workspace.pk %}" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_link" />
+        <div class="inline-fields">
+          {% include 'includes/form_field.html' with field=share_form.role %}
+          {% include 'includes/form_field.html' with field=share_form.days %}
+          <button type="submit" class="btn-primary">Generate link</button>
+        </div>
+      </form>
+
+      {% if links %}
+      <div class="links-list">
+        <h3 class="links-list-title">Active links</h3>
+        {% for link in links %}
+        <div class="link-row">
+          <div class="link-row-info">
+            <span class="role-badge role-badge--{{ link.role }}">{{ link.role }}</span>
+            <code class="link-url" id="wslink-{{ link.id }}">{{ request.scheme }}://{{ request.get_host }}{% url 'workspaces:join' link.token %}</code>
+            <span class="link-expiry">Expires {{ link.expires_at|date:"N j, Y" }}</span>
+          </div>
+          <div class="link-row-actions">
+            <button type="button" class="btn-ghost btn-sm" onclick="copyLink('wslink-{{ link.id }}')">Copy</button>
+            <form method="post" action="{% url 'workspaces:share' workspace.pk %}" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="revoke_link" />
+              <input type="hidden" name="link_id" value="{{ link.id }}" />
+              <button type="submit" class="btn-ghost btn-sm btn-danger-ghost">Revoke</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function copyLink(elemId) {
+  const el = document.getElementById(elemId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim())
+    .then(() => { el.style.color = 'var(--green)'; setTimeout(() => el.style.color = '', 1500); })
+    .catch(() => { const r = document.createRange(); r.selectNode(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); document.execCommand('copy'); window.getSelection().removeAllRanges(); });
+}
+</script>
+{% endblock %}
