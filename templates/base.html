@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}CollabNotes{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+{% if user.is_authenticated %}
+<nav class="navbar">
+  <div class="nav-inner">
+
+    <a href="{% url 'notes:list' %}" class="nav-brand">
+      <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
+        <rect x="4" y="4" width="32" height="32" rx="8" fill="var(--accent)"/>
+        <path d="M12 14h16M12 20h10M12 26h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span>CollabNotes</span>
+    </a>
+
+    <div class="nav-links">
+      <a href="{% url 'notes:list' %}" class="nav-link {% block nav_notes %}{% endblock %}">Notes</a>
+      <a href="{% url 'workspaces:list' %}" class="nav-link {% block nav_workspaces %}{% endblock %}">Workspaces</a>
+    </div>
+
+    <div class="nav-actions">
+      <div class="nav-user">
+        <span class="avatar">{{ user.get_initials }}</span>
+        <div class="nav-dropdown">
+          <div class="dropdown-header">
+            <span class="dropdown-name">{{ user.display_name }}</span>
+            <span class="dropdown-email">{{ user.email }}</span>
+          </div>
+          <a href="{% url 'accounts:profile' %}" class="dropdown-item">Profile</a>
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="dropdown-item dropdown-item--btn">Sign out</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</nav>
+{% endif %}
+
+{% include 'includes/messages.html' %}
+
+<main class="main {% block main_class %}{% endblock %}">
+  {% block content %}{% endblock %}
+</main>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Delete Note — CollabNotes{% endblock %}
+
+{% block content %}
+<div class="page-wrap page-wrap--narrow">
+
+  <div class="card">
+    <div class="card-body card-body--center">
+
+      <div class="danger-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+        </svg>
+      </div>
+
+      <h1 class="page-title">Delete note?</h1>
+      <p class="page-sub">
+        "<strong>{{ note.title }}</strong>" will be moved to trash.
+        This action can be reversed by an administrator.
+      </p>
+
+      <div class="form-actions form-actions--center">
+        <form method="post" action="{% url 'notes:delete' note.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-danger">Yes, delete</button>
+        </form>
+        <a href="{% url 'notes:detail' note.pk %}" class="btn-ghost">Cancel</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

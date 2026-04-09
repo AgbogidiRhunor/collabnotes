@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Profile — CollabNotes{% endblock %}
+{% block nav_notes %}{% endblock %}
+
+{% block content %}
+<div class="page-wrap page-wrap--narrow">
+
+  <div class="page-header">
+    <h1 class="page-title">Profile</h1>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+
+      <div class="profile-avatar">
+        <span class="avatar avatar--lg">{{ user.get_initials }}</span>
+        <div>
+          <p class="profile-name">{{ user.display_name }}</p>
+          <p class="profile-email">{{ user.email }}</p>
+          <p class="profile-since">Member since {{ user.created_at|date:"N j, Y" }}</p>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <form method="post" action="{% url 'accounts:profile' %}" novalidate>
+        {% csrf_token %}
+        {% include 'includes/form_field.html' with field=form.display_name %}
+        <button type="submit" class="btn-primary">Save changes</button>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

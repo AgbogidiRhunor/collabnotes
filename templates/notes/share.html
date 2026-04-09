@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Share — {{ note.title }} — CollabNotes{% endblock %}
+{% block nav_notes %}active{% endblock %}
+
+{% block content %}
+<div class="page-wrap page-wrap--narrow">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Share note</h1>
+      <p class="page-sub">
+        <a href="{% url 'notes:detail' note.pk %}">← {{ note.title }}</a>
+      </p>
+    </div>
+  </div>
+
+  {# Current collaborators #}
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Collaborators</h2>
+    </div>
+    <div class="card-body">
+      <ul class="collab-list">
+        {% for collab in collaborators %}
+        <li class="collab-row">
+          <span class="avatar avatar--sm">{{ collab.user.get_initials }}</span>
+          <div class="collab-info">
+            <span class="collab-name">
+              {{ collab.user.display_name }}
+              {% if collab.user == request.user %}<span class="you-tag">(you)</span>{% endif %}
+            </span>
+            <span class="collab-email">{{ collab.user.email }}</span>
+          </div>
+
+          {% if collab.role == 'owner' %}
+            <span class="role-badge role-badge--owner">Owner</span>
+          {% else %}
+            {# Owner can change roles and remove collaborators #}
+            <form method="post" action="{% url 'notes:share' note.pk %}" class="inline-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="change_role" />
+              <input type="hidden" name="user_id" value="{{ collab.user.id }}" />
+              <select name="role" class="select-input select-input--sm" onchange="this.form.submit()">
+                <option value="editor" {% if collab.role == 'editor' %}selected{% endif %}>Editor</option>
+                <option value="viewer" {% if collab.role == 'viewer' %}selected{% endif %}>Viewer</option>
+              </select>
+            </form>
+            <form method="post" action="{% url 'notes:share' note.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="remove_collaborator" />
+              <input type="hidden" name="user_id" value="{{ collab.user.id }}" />
+              <button type="submit" class="btn-ghost btn-sm btn-danger-ghost" title="Remove">Remove</button>
+            </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  {# ── Invite by email ──────────────────────────────────────────────────── #}
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Invite by email</h2>
+      <p class="card-sub">The person must already have a CollabNotes account.</p>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{% url 'notes:share' note.pk %}" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="invite_email" />
+
+        {% if invite_form.non_field_errors %}
+          <div class="form-errors">
+            {% for error in invite_form.non_field_errors %}
+              <p class="form-error">{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="inline-fields">
+          {% include 'includes/form_field.html' with field=invite_form.email %}
+          {% include 'includes/form_field.html' with field=invite_form.role %}
+          <button type="submit" class="btn-primary">Invite</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  {# ── Share via link ────────────────────────────────────────────────────── #}
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Share via link</h2>
+      <p class="card-sub">Anyone with this link can access the note.</p>
+    </div>
+    <div class="card-body">
+
+      <form method="post" action="{% url 'notes:share' note.pk %}" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_link" />
+
+        <div class="inline-fields">
+          {% include 'includes/form_field.html' with field=share_form.role %}
+          {% include 'includes/form_field.html' with field=share_form.days %}
+          <button type="submit" class="btn-primary">Generate link</button>
+        </div>
+
+      </form>
+
+      {% if links %}
+      <div class="links-list">
+        <h3 class="links-list-title">Active links</h3>
+        {% for link in links %}
+        <div class="link-row">
+          <div class="link-row-info">
+            <span class="role-badge role-badge--{{ link.role }}">{{ link.role }}</span>
+            <code class="link-url" id="link-{{ link.id }}">{{ request.scheme }}://{{ request.get_host }}{% url 'notes:join' link.token %}</code>
+            <span class="link-expiry">Expires {{ link.expires_at|date:"N j, Y" }}</span>
+          </div>
+          <div class="link-row-actions">
+            <button
+              type="button"
+              class="btn-ghost btn-sm"
+              onclick="copyLink('link-{{ link.id }}')"
+            >Copy</button>
+            <form method="post" action="{% url 'notes:share' note.pk %}" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="revoke_link" />
+              <input type="hidden" name="link_id" value="{{ link.id }}" />
+              <button type="submit" class="btn-ghost btn-sm btn-danger-ghost">Revoke</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function copyLink(elemId) {
+  const el = document.getElementById(elemId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim())
+    .then(() => {
+      const orig = el.previousElementSibling;
+      // Brief visual feedback
+      el.style.color = 'var(--green)';
+      setTimeout(() => el.style.color = '', 1500);
+    })
+    .catch(() => {
+      // Fallback for older browsers
+      const range = document.createRange();
+      range.selectNode(el);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.execCommand('copy');
+      window.getSelection().removeAllRanges();
+    });
+}
+</script>
+{% endblock %}

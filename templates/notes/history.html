@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}History — {{ note.title }} — CollabNotes{% endblock %}
+{% block nav_notes %}active{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Version History</h1>
+      <p class="page-sub">
+        <a href="{% url 'notes:detail' note.pk %}">← {{ note.title }}</a>
+      </p>
+    </div>
+
+    {% if perm.can_edit %}
+    {# Manual snapshot form #}
+    <form method="post" action="{% url 'notes:save_version' note.pk %}" class="inline-form">
+      {% csrf_token %}
+      <input type="text" name="label" placeholder="Label this version (optional)" class="input-field input-field--sm" />
+      <button type="submit" class="btn-secondary btn-sm">Save snapshot</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if versions %}
+  <div class="history-layout">
+
+    {# Version list #}
+    <div class="version-list">
+      {% for version in versions %}
+      <div class="version-item {% if forloop.first %}version-item--current{% endif %}">
+        <div class="version-item-meta">
+          <span class="version-date">{{ version.created_at|date:"N j, Y · g:i A" }}</span>
+          {% if forloop.first %}
+            <span class="version-tag">Current</span>
+          {% endif %}
+        </div>
+        {% if version.label %}
+          <p class="version-label">"{{ version.label }}"</p>
+        {% endif %}
+        <p class="version-author">
+          {% if version.saved_by %}
+            by {{ version.saved_by.display_name }}
+          {% else %}
+            by system
+          {% endif %}
+        </p>
+
+        {% if perm.can_edit and not forloop.first %}
+        <form method="post" action="{% url 'notes:restore_version' note.pk version.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn-ghost btn-sm">Restore this version</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Preview of current content #}
+    <div class="version-preview card">
+      <div class="card-header">
+        <h2 class="card-title">Current content</h2>
+      </div>
+      <div class="card-body version-preview-content">
+        <h3 class="version-preview-title">{{ note.title }}</h3>
+        <div class="prose">{{ note.content }}</div>
+      </div>
+    </div>
+
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <h2>No versions yet</h2>
+    <p>Versions are saved automatically when you edit, or you can save a manual snapshot above.</p>
+    <a href="{% url 'notes:detail' note.pk %}" class="btn-primary">Back to note</a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

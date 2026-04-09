@@ -1,0 +1,10 @@
+{% comment %}
+Usage: {% include 'includes/form_field.html' with field=form.email %}
+{% endcomment %}
+<div class="field-group {% if field.errors %}field-group--error{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+  {% for error in field.errors %}
+    <span class="field-error">{{ error }}</span>
+  {% endfor %}
+</div>

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Workspace — CollabNotes{% endblock %}
+{% block nav_workspaces %}active{% endblock %}
+
+{% block content %}
+<div class="page-wrap page-wrap--narrow">
+
+  <div class="page-header">
+    <h1 class="page-title">{{ action }} Workspace</h1>
+    <a href="{% url 'workspaces:list' %}" class="btn-ghost">Cancel</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="form-errors">
+            {% for error in form.non_field_errors %}
+              <p class="form-error">{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% include 'includes/form_field.html' with field=form.name %}
+        {% include 'includes/form_field.html' with field=form.description %}
+
+        <div class="field-group">
+          <label for="{{ form.color.id_for_label }}">Colour</label>
+          <div class="color-field-wrap">
+            {{ form.color }}
+            <span class="color-preview" id="color-preview"></span>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">{{ action }} workspace</button>
+          <a href="{% url 'workspaces:list' %}" class="btn-ghost">Cancel</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Show a live colour preview next to the colour picker
+  const input = document.getElementById('{{ form.color.id_for_label }}');
+  const preview = document.getElementById('color-preview');
+  function updatePreview() {
+    if (preview) preview.style.background = input.value;
+  }
+  if (input) {
+    input.addEventListener('input', updatePreview);
+    updatePreview();
+  }
+</script>
+{% endblock %}

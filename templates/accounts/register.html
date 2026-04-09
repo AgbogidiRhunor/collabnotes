@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Create account — CollabNotes{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+
+  <div class="auth-brand">
+    <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+      <rect x="4" y="4" width="32" height="32" rx="8" fill="var(--accent)"/>
+      <path d="M12 14h16M12 20h10M12 26h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <span class="auth-brand-name">CollabNotes</span>
+  </div>
+
+  <div class="auth-card">
+    <h1 class="auth-title">Create account</h1>
+    <p class="auth-sub">Start collaborating in seconds</p>
+
+    <form method="post" action="{% url 'accounts:register' %}" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-errors">
+          {% for error in form.non_field_errors %}
+            <p class="form-error">{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% include 'includes/form_field.html' with field=form.display_name %}
+      {% include 'includes/form_field.html' with field=form.email %}
+      {% include 'includes/form_field.html' with field=form.password %}
+      {% include 'includes/form_field.html' with field=form.password_confirm %}
+
+      <button type="submit" class="btn-primary btn-full">Create account</button>
+    </form>
+
+    <p class="auth-switch">
+      Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a>
+    </p>
+  </div>
+
+</div>
+{% endblock %}
