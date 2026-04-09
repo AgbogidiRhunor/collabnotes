@@ -47,8 +47,7 @@ def get_note_for_user(note_id, user, required_role='viewer'):
     return perm.note, perm
 
 
-# ── Note List ─────────────────────────────────────────────────────────────────
-
+# Note List 
 @method_decorator(login_required, name='dispatch')
 class NoteListView(View):
     template_name = 'notes/list.html'
@@ -80,14 +79,15 @@ class NoteListView(View):
         })
 
 
-# ── Note Create ───────────────────────────────────────────────────────────────
-
+# Note Create
 @method_decorator(login_required, name='dispatch')
 class NoteCreateView(View):
     template_name = 'notes/create.html'
 
     def get(self, request):
-        form = NoteForm(user=request.user)
+        workspace_id = request.GET.get('workspace')
+        initial = {'workspace': workspace_id} if workspace_id else {}
+        form = NoteForm(user=request.user, initial=initial)
         return render(request, self.template_name, {'form': form})
 
     def post(self, request):
@@ -98,14 +98,12 @@ class NoteCreateView(View):
                 note.creator = request.user
                 note.content = sanitize(note.content)
                 note.save()
-                # Creator gets owner permission
                 NotePermission.objects.create(
                     note=note,
                     user=request.user,
                     role=NotePermission.Role.OWNER,
                     granted_by=request.user,
                 )
-                # Save initial version
                 NoteVersion.objects.create(
                     note=note,
                     title_snapshot=note.title,
@@ -117,8 +115,8 @@ class NoteCreateView(View):
         return render(request, self.template_name, {'form': form})
 
 
-# ── Note Detail / Editor ──────────────────────────────────────────────────────
 
+# Note Detail / Editor
 @method_decorator(login_required, name='dispatch')
 class NoteDetailView(View):
     template_name = 'notes/detail.html'
@@ -169,8 +167,7 @@ class NoteDetailView(View):
         })
 
 
-# ── Note Delete ───────────────────────────────────────────────────────────────
-
+# Note Delete
 @method_decorator(login_required, name='dispatch')
 class NoteDeleteView(View):
     template_name = 'notes/confirm_delete.html'
@@ -186,8 +183,7 @@ class NoteDeleteView(View):
         return redirect('notes:list')
 
 
-# ── Version History ───────────────────────────────────────────────────────────
-
+# Version History
 @method_decorator(login_required, name='dispatch')
 class NoteHistoryView(View):
     template_name = 'notes/history.html'
@@ -225,8 +221,7 @@ class NoteRestoreVersionView(View):
         return redirect('notes:detail', pk=note.pk)
 
 
-# ── Save Version (manual snapshot) ───────────────────────────────────────────
-
+# Save Version (manual snapshot)
 @method_decorator(login_required, name='dispatch')
 class SaveVersionView(View):
     def post(self, request, pk):
@@ -244,7 +239,7 @@ class SaveVersionView(View):
         return redirect('notes:history', pk=note.pk)
 
 
-# ── Share: create link ────────────────────────────────────────────────────────
+# Share: create link
 
 @method_decorator(login_required, name='dispatch')
 class NoteShareView(View):
@@ -345,8 +340,7 @@ class NoteShareView(View):
         })
 
 
-# ── Join via share link ───────────────────────────────────────────────────────
-
+# Join via share link 
 @method_decorator(login_required, name='dispatch')
 class JoinNoteView(View):
     def get(self, request, token):

@@ -10,22 +10,7 @@
       <h1 class="page-title">My Notes</h1>
       <p class="page-sub">{{ notes_with_role|length }} note{{ notes_with_role|length|pluralize }}</p>
     </div>
-    <a href="{% url 'notes:create' %}" class="btn-primary">+ New note</a>
   </div>
-
-  {% if workspaces %}
-  <div class="filter-bar">
-    <span class="filter-label">Workspace:</span>
-    <a href="{% url 'notes:list' %}" class="filter-chip {% if not active_workspace %}filter-chip--active{% endif %}">All</a>
-    {% for ws in workspaces %}
-    <a href="?workspace={{ ws.id }}"
-       class="filter-chip {% if active_workspace == ws.id|stringformat:'s' %}filter-chip--active{% endif %}"
-       style="--chip-color: {{ ws.color }}">
-      {{ ws.name }}
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %}
 
   {% if notes_with_role %}
   <div class="notes-grid">
@@ -52,6 +37,12 @@
     {% endfor %}
   </div>
 
+  <a href="{% url 'notes:create' %}" class="fab" title="New note">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </a>
+
   {% else %}
   <div class="empty-state">
     <svg width="56" height="56" viewBox="0 0 64 64" fill="none">
@@ -61,8 +52,8 @@
       <line x1="18" y1="38" x2="34" y2="38" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
     </svg>
     <h2>No notes yet</h2>
-    <p>Create your first note to get started.</p>
-    <a href="{% url 'notes:create' %}" class="btn-primary">Create a note</a>
+    <p>Create your first note or organise them into workspaces.</p>
+    <a href="{% url 'notes:create' %}" class="btn-primary">New note</a>
   </div>
   {% endif %}
 

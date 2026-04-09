@@ -831,12 +831,26 @@ img { display: block; max-width: 100%; }
 .link-expiry { font-size: 0.78rem; color: var(--text-muted); }
 .link-row-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
 
-/* Workspace grid */
-.workspace-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+/* Workspace detail heading */
+.workspace-detail-heading {
+  display: flex;
+  align-items: center;
   gap: 1rem;
 }
+.workspace-detail-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.workspace-detail-desc {
+  font-size: 0.9rem;
+  color: var(--text-2);
+  margin-bottom: 1.5rem;
+  max-width: 600px;
+}
+
+/* Workspace card — make body clickable, keep actions separate */
 .workspace-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -845,9 +859,20 @@ img { display: block; max-width: 100%; }
   transition: border-color var(--dur);
 }
 .workspace-card:hover { border-color: var(--border-strong); }
+.workspace-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.workspace-card-link:hover { text-decoration: none; }
 .workspace-card-color {
   height: 5px;
   background: var(--ws-color, var(--accent));
+}
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
 }
 .workspace-card-body { padding: 1rem 1.1rem 0.75rem; }
 .workspace-card-name { font-size: 1rem; font-weight: 500; margin-bottom: 0.3rem; }

@@ -1,57 +1,50 @@
 {% extends 'base.html' %}
-{% block title %}My Notes — CollabNotes{% endblock %}
-{% block nav_notes %}active{% endblock %}
+{% block title %}Workspaces — CollabNotes{% endblock %}
+{% block nav_workspaces %}active{% endblock %}
 
 {% block content %}
 <div class="page-wrap">
 
   <div class="page-header">
     <div>
-      <h1 class="page-title">My Notes</h1>
-      <p class="page-sub">{{ notes_with_role|length }} note{{ notes_with_role|length|pluralize }}</p>
+      <h1 class="page-title">Workspaces</h1>
+      <p class="page-sub">Organise your notes into folders</p>
     </div>
   </div>
 
   {% if workspaces %}
-  <div class="filter-bar">
-    <span class="filter-label">Workspace:</span>
-    <a href="{% url 'notes:list' %}" class="filter-chip {% if not active_workspace %}filter-chip--active{% endif %}">All</a>
+  <div class="workspace-grid">
     {% for ws in workspaces %}
-    <a href="?workspace={{ ws.id }}"
-       class="filter-chip {% if active_workspace == ws.id|stringformat:'s' %}filter-chip--active{% endif %}"
-       style="--chip-color: {{ ws.color }}">
-      {{ ws.name }}
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if notes_with_role %}
-  <div class="notes-grid">
-    {% for item in notes_with_role %}
-    <a href="{% url 'notes:detail' item.note.pk %}" class="note-card">
-      <div class="note-card-header">
-        <h2 class="note-card-title">{{ item.note.title }}</h2>
-        <span class="role-badge role-badge--{{ item.role }}">{{ item.role }}</span>
+    <div class="workspace-card" style="--ws-color: {{ ws.color }}">
+        <div class="workspace-card-color"></div>
+        <div class="workspace-card-body">
+          <a href="{% url 'workspaces:detail' ws.pk %}" class="workspace-card-link">
+          <h2 class="workspace-card-name">{{ ws.name }}</h2>
+          </a>
+          {% if ws.description %}
+            <p class="workspace-card-desc">{{ ws.description|truncatechars:80 }}</p>
+          {% endif %}
+          <p class="workspace-card-count">
+            {{ ws.notes.count }} note{{ ws.notes.count|pluralize }}
+          </p>
+        </div>
+      
+      <div class="workspace-card-actions">
+        <a href="{% url 'workspaces:edit' ws.pk %}" class="btn-ghost btn-sm">Edit</a>
+        <form method="post" action="{% url 'workspaces:delete' ws.pk %}" style="display:inline">
+          {% csrf_token %}
+          <button type="submit"
+            class="btn-ghost btn-sm btn-danger-ghost"
+            onclick="return confirm('Delete workspace \'{{ ws.name }}\'? Notes inside will not be deleted.')">
+            Delete
+          </button>
+        </form>
       </div>
-      {% if item.note.content %}
-      <p class="note-card-preview">{{ item.note.content|striptags|truncatechars:120 }}</p>
-      {% else %}
-      <p class="note-card-preview note-card-preview--empty">No content yet…</p>
-      {% endif %}
-      <div class="note-card-footer">
-        <span class="note-card-date">{{ item.note.updated_at|timesince }} ago</span>
-        {% if item.note.workspace %}
-        <span class="note-card-workspace" style="--ws-color: {{ item.note.workspace.color }}">
-          {{ item.note.workspace.name }}
-        </span>
-        {% endif %}
-      </div>
-    </a>
+    </div>
     {% endfor %}
   </div>
 
-  <a href="{% url 'notes:create' %}" class="fab" title="New note">
+  <a href="{% url 'workspaces:create' %}" class="fab" title="New workspace">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
       <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
     </svg>
@@ -59,15 +52,12 @@
 
   {% else %}
   <div class="empty-state">
-    <svg width="56" height="56" viewBox="0 0 64 64" fill="none">
-      <rect x="10" y="6" width="44" height="52" rx="6" stroke="var(--text-muted)" stroke-width="2"/>
-      <line x1="18" y1="22" x2="46" y2="22" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
-      <line x1="18" y1="30" x2="40" y2="30" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
-      <line x1="18" y1="38" x2="34" y2="38" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"/>
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
     </svg>
-    <h2>No notes yet</h2>
-    <p>Create your first note to get started.</p>
-    <a href="{% url 'notes:create' %}" class="btn-primary">New note</a>
+    <h2>No workspaces yet</h2>
+    <p>Create a workspace to group related notes together.</p>
+    <a href="{% url 'workspaces:create' %}" class="btn-primary">New workspace</a>
   </div>
   {% endif %}
 

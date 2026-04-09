@@ -18,6 +18,19 @@ class WorkspaceListView(View):
 
 
 @method_decorator(login_required, name='dispatch')
+class WorkspaceDetailView(View):
+    template_name = 'workspaces/detail.html'
+
+    def get(self, request, pk):
+        workspace = get_object_or_404(Workspace, pk=pk, owner=request.user, is_deleted=False)
+        notes = workspace.notes.filter(is_deleted=False).order_by('-updated_at')
+        return render(request, self.template_name, {
+            'workspace': workspace,
+            'notes': notes,
+        })
+
+
+@method_decorator(login_required, name='dispatch')
 class WorkspaceCreateView(View):
     template_name = 'workspaces/form.html'
 
@@ -32,7 +45,7 @@ class WorkspaceCreateView(View):
             workspace.owner = request.user
             workspace.save()
             messages.success(request, f'Workspace "{workspace.name}" created.')
-            return redirect('workspaces:list')
+            return redirect('workspaces:detail', pk=workspace.pk)
         return render(request, self.template_name, {'form': form, 'action': 'Create'})
 
 
@@ -56,7 +69,7 @@ class WorkspaceEditView(View):
         if form.is_valid():
             form.save()
             messages.success(request, 'Workspace updated.')
-            return redirect('workspaces:list')
+            return redirect('workspaces:detail', pk=workspace.pk)
         return render(request, self.template_name, {
             'form': form, 'workspace': workspace, 'action': 'Edit'
         })
