@@ -47,7 +47,7 @@ def get_note_for_user(note_id, user, required_role='viewer'):
     return perm.note, perm
 
 
-# Note List 
+# Note List
 @method_decorator(login_required, name='dispatch')
 class NoteListView(View):
     template_name = 'notes/list.html'
@@ -116,14 +116,13 @@ class NoteCreateView(View):
 
 
 
-# Note Detail / Editor 
+# Note Detail / Editor
 @method_decorator(login_required, name='dispatch')
 class NoteDetailView(View):
     template_name = 'notes/detail.html'
 
     def get(self, request, pk):
         note, perm = get_note_for_user(pk, request.user, required_role='viewer')
-        form = NoteForm(instance=note, user=request.user)
         collaborators = (
             NotePermission.objects
             .filter(note=note)
@@ -133,7 +132,6 @@ class NoteDetailView(View):
         return render(request, self.template_name, {
             'note': note,
             'perm': perm,
-            'form': form,
             'collaborators': collaborators,
             'owner': note.creator,
             'is_shared': note.creator != request.user,
@@ -141,32 +139,25 @@ class NoteDetailView(View):
 
     def post(self, request, pk):
         note, perm = get_note_for_user(pk, request.user, required_role='editor')
-        form = NoteForm(request.POST, instance=note, user=request.user)
-        if form.is_valid():
-            updated_note = form.save(commit=False)
-            updated_note.content = sanitize(updated_note.content)
-            updated_note.save()
-            # Save a version snapshot
-            NoteVersion.objects.create(
-                note=updated_note,
-                title_snapshot=updated_note.title,
-                content_snapshot=updated_note.content,
-                saved_by=request.user,
-            )
-            messages.success(request, 'Note saved.')
-            return redirect('notes:detail', pk=note.pk)
 
-        collaborators = (
-            NotePermission.objects
-            .filter(note=note)
-            .select_related('user')
+        title   = request.POST.get('title', '').strip()[:500]
+        content = sanitize(request.POST.get('content', ''))
+        workspace_id = request.POST.get('workspace') or None
+
+        note.title   = title or 'Untitled Note'
+        note.content = content
+        if workspace_id:
+            note.workspace_id = workspace_id
+        note.save(update_fields=['title', 'content', 'workspace_id', 'updated_at'])
+
+        NoteVersion.objects.create(
+            note=note,
+            title_snapshot=note.title,
+            content_snapshot=note.content,
+            saved_by=request.user,
         )
-        return render(request, self.template_name, {
-            'note': note,
-            'perm': perm,
-            'form': form,
-            'collaborators': collaborators,
-        })
+        messages.success(request, 'Note saved.')
+        return redirect('notes:detail', pk=note.pk)
 
 
 # Note Delete 
@@ -185,7 +176,7 @@ class NoteDeleteView(View):
         return redirect('notes:list')
 
 
-# Version History
+# Version History 
 @method_decorator(login_required, name='dispatch')
 class NoteHistoryView(View):
     template_name = 'notes/history.html'
@@ -241,7 +232,7 @@ class SaveVersionView(View):
         return redirect('notes:history', pk=note.pk)
 
 
-# Share: create link 
+# Share: create links, invite by email, manage collaborators, revoke access
 @method_decorator(login_required, name='dispatch')
 class NoteShareView(View):
     template_name = 'notes/share.html'

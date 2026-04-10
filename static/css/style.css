@@ -789,6 +789,33 @@ img { display: block; max-width: 100%; }
 .note-editor b,
 .prose strong { font-weight: 600; }
 
+/* Author highlight spans */
+.author-span {
+  background: color-mix(in srgb, var(--author-color) 18%, transparent);
+  border-radius: 2px;
+  position: relative;
+  cursor: default;
+}
+.author-span:hover::after {
+  content: attr(data-author);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--author-color);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  font-family: var(--font-ui);
+  font-style: normal;
+  box-shadow: var(--shadow);
+}
+
 /* Viewer preview — for history page */
 .version-preview-title {
   font-family: var(--font-serif);

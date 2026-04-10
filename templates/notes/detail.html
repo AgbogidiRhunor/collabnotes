@@ -4,6 +4,11 @@
 {% block title %}{{ note.title }} — CollabNotes{% endblock %}
 {% block nav_notes %}active{% endblock %}
 
+{% block extra_head %}
+<meta name="note-id" content="{{ note.id }}" />
+<meta name="can-edit" content="{{ perm.can_edit|yesno:'true,false' }}" />
+{% endblock %}
+
 {% block content %}
 <div class="editor-page">
 
@@ -13,44 +18,36 @@
     </div>
 
     <div class="editor-topbar-center">
-      {% if is_shared %}
-        <span class="editor-owner-badge">by {{ owner.display_name }}</span>
-      {% endif %}
-      <span class="save-status" id="save-status"></span>
+      <span class="save-status" id="save-status">
+        {% if perm.can_edit %}All changes saved{% else %}View only{% endif %}
+      </span>
     </div>
 
     <div class="editor-topbar-right">
+      <div class="collab-avatars" id="collab-avatars"></div>
+
       {% if perm.can_edit %}
-        <a href="{% url 'notes:history' note.pk %}" class="btn-ghost btn-sm">History</a>
+      <a href="{% url 'notes:history' note.pk %}" class="btn-ghost btn-sm">History</a>
       {% endif %}
+
       {% if perm.can_manage %}
-        <a href="{% url 'notes:share' note.pk %}" class="btn-ghost btn-sm">Share</a>
-        <a href="{% url 'notes:delete' note.pk %}" class="btn-ghost btn-sm btn-danger-ghost">Delete</a>
-      {% endif %}
-      {% if perm.can_edit %}
-        <button type="submit" form="note-form" class="btn-primary btn-sm" id="save-btn">Save</button>
+      <a href="{% url 'notes:share' note.pk %}" class="btn-ghost btn-sm">Share</a>
+      <a href="{% url 'notes:delete' note.pk %}" class="btn-ghost btn-sm btn-danger-ghost">Delete</a>
       {% endif %}
     </div>
   </div>
 
   {% if perm.can_edit %}
-  <div class="format-toolbar" id="format-toolbar" role="toolbar" aria-label="Text formatting">
+  <div class="format-toolbar" id="format-toolbar">
     <button type="button" class="fmt-btn" data-cmd="bold"><b>B</b></button>
     <button type="button" class="fmt-btn" data-cmd="italic"><i>I</i></button>
     <button type="button" class="fmt-btn" data-cmd="underline"><u>U</u></button>
-    <button type="button" class="fmt-btn" data-cmd="strikeThrough"><s>S</s></button>
-    <span class="fmt-sep"></span>
-    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="h1">H1</button>
-    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="h2">H2</button>
-    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="h3">H3</button>
-    <span class="fmt-sep"></span>
-    <button type="button" class="fmt-btn" data-cmd="insertUnorderedList">• List</button>
-    <button type="button" class="fmt-btn" data-cmd="insertOrderedList">1. List</button>
   </div>
   {% endif %}
 
-  <form method="post" action="{% url 'notes:detail' note.pk %}" id="note-form" novalidate>
+  <form method="post" action="{% url 'notes:detail' note.pk %}" id="note-form">
     {% csrf_token %}
+
     <div class="editor-body">
 
       <input
@@ -59,10 +56,7 @@
         id="note-title"
         class="note-title-field"
         value="{{ note.title }}"
-        placeholder="Untitled Note"
-        maxlength="500"
         {% if not perm.can_edit %}readonly{% endif %}
-        autocomplete="off"
       />
 
       <textarea name="content" id="note-content-hidden" style="display:none">{{ note.content }}</textarea>
@@ -71,7 +65,6 @@
         id="note-editor"
         class="note-editor {% if not perm.can_edit %}note-editor--readonly{% endif %}"
         {% if perm.can_edit %}contenteditable="true"{% endif %}
-        spellcheck="true"
       >{{ note.content }}</div>
 
     </div>

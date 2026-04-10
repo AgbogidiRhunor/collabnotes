@@ -154,7 +154,7 @@ BLEACH_ALLOWED_TAGS = [
 
 BLEACH_ALLOWED_ATTRIBUTES = {
     'a': ['href', 'title'],
-    'span': ['class'],
+    'span': ['class', 'style', 'data-author'],
 }
 
 NOTE_SHARE_LINK_EXPIRY_DAYS = 7
