@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
 {% load static %}
-
 {% block title %}{{ note.title }} — CollabNotes{% endblock %}
 {% block nav_notes %}active{% endblock %}
 
 {% block extra_head %}
-<meta name="note-id" content="{{ note.id }}" />
-<meta name="can-edit" content="{{ perm.can_edit|yesno:'true,false' }}" />
+<meta name="can-edit" content="{{ can_edit|yesno:'true,false' }}" />
+<meta name="current-user" content="{{ request.user.display_name }}" />
 {% endblock %}
 
 {% block content %}
@@ -18,36 +17,75 @@
     </div>
 
     <div class="editor-topbar-center">
-      <span class="save-status" id="save-status">
-        {% if perm.can_edit %}All changes saved{% else %}View only{% endif %}
-      </span>
+      {% if is_shared %}
+        <span class="editor-owner-badge">by {{ owner.display_name }}</span>
+      {% endif %}
+      <span class="save-status" id="save-status"></span>
     </div>
 
     <div class="editor-topbar-right">
-      <div class="collab-avatars" id="collab-avatars"></div>
-
-      {% if perm.can_edit %}
-      <a href="{% url 'notes:history' note.pk %}" class="btn-ghost btn-sm">History</a>
+      {% if can_edit %}
+        <a href="{% url 'notes:history' note.pk %}" class="btn-ghost btn-sm">History</a>
       {% endif %}
-
-      {% if perm.can_manage %}
-      <a href="{% url 'notes:share' note.pk %}" class="btn-ghost btn-sm">Share</a>
-      <a href="{% url 'notes:delete' note.pk %}" class="btn-ghost btn-sm btn-danger-ghost">Delete</a>
+      {% if can_manage %}
+        <a href="{% url 'notes:share' note.pk %}" class="btn-ghost btn-sm">Share</a>
+        <a href="{% url 'notes:delete' note.pk %}" class="btn-ghost btn-sm btn-danger-ghost">Delete</a>
+      {% endif %}
+      {% if can_edit %}
+        <button type="button" id="save-btn" class="btn-primary btn-sm">Save</button>
       {% endif %}
     </div>
   </div>
 
-  {% if perm.can_edit %}
-  <div class="format-toolbar" id="format-toolbar">
-    <button type="button" class="fmt-btn" data-cmd="bold"><b>B</b></button>
-    <button type="button" class="fmt-btn" data-cmd="italic"><i>I</i></button>
-    <button type="button" class="fmt-btn" data-cmd="underline"><u>U</u></button>
+  {% if can_edit %}
+  <div class="format-toolbar" id="format-toolbar" role="toolbar" aria-label="Text formatting">
+    <button type="button" class="fmt-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button type="button" class="fmt-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button type="button" class="fmt-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+    <button type="button" class="fmt-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+    <span class="fmt-sep"></span>
+    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="h1" title="Heading 1">H1</button>
+    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="h2" title="Heading 2">H2</button>
+    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="h3" title="Heading 3">H3</button>
+    <span class="fmt-sep"></span>
+    <button type="button" class="fmt-btn" data-cmd="insertUnorderedList" title="Bullet list">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="2" cy="4" r="1.5" fill="currentColor"/>
+        <line x1="5" y1="4" x2="14" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="2" cy="8" r="1.5" fill="currentColor"/>
+        <line x1="5" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="2" cy="12" r="1.5" fill="currentColor"/>
+        <line x1="5" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button type="button" class="fmt-btn" data-cmd="insertOrderedList" title="Numbered list">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <text x="0" y="5" font-size="5" fill="currentColor" font-family="monospace">1.</text>
+        <line x1="5" y1="4" x2="14" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <text x="0" y="9" font-size="5" fill="currentColor" font-family="monospace">2.</text>
+        <line x1="5" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <text x="0" y="13" font-size="5" fill="currentColor" font-family="monospace">3.</text>
+        <line x1="5" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="blockquote" title="Blockquote">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="2" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.5"/>
+        <line x1="6" y1="5" x2="14" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="6" y1="8" x2="12" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button type="button" class="fmt-btn" data-cmd="formatBlock" data-val="pre" title="Code block">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <polyline points="5,3 1,8 5,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="11,3 15,8 11,13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>
   {% endif %}
 
-  <form method="post" action="{% url 'notes:detail' note.pk %}" id="note-form">
+  <form method="post" action="{% url 'notes:detail' note.pk %}" id="note-form" novalidate>
     {% csrf_token %}
-
     <div class="editor-body">
 
       <input
@@ -56,22 +94,30 @@
         id="note-title"
         class="note-title-field"
         value="{{ note.title }}"
-        {% if not perm.can_edit %}readonly{% endif %}
+        placeholder="Untitled Note"
+        maxlength="500"
+        {% if not can_edit %}readonly{% endif %}
+        autocomplete="off"
       />
 
-      <textarea name="content" id="note-content-hidden" style="display:none">{{ note.content }}</textarea>
+      <textarea name="content" id="note-content-field" style="display:none"></textarea>
+
+      {% if note.workspace %}
+        <input type="hidden" name="workspace" value="{{ note.workspace.pk }}" />
+      {% endif %}
 
       <div
         id="note-editor"
-        class="note-editor {% if not perm.can_edit %}note-editor--readonly{% endif %}"
-        {% if perm.can_edit %}contenteditable="true"{% endif %}
-      >{{ note.content }}</div>
+        class="note-editor {% if not can_edit %}note-editor--readonly{% endif %}"
+        {% if can_edit %}contenteditable="true"{% endif %}
+        spellcheck="true"
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Note content"
+        data-placeholder="Start writing…"
+      >{{ note.content|safe }}</div>
 
     </div>
-
-    {% if form.workspace.value %}
-      <input type="hidden" name="workspace" value="{{ form.workspace.value }}" />
-    {% endif %}
   </form>
 
 </div>

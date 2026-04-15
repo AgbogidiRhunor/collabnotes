@@ -47,7 +47,7 @@ def get_note_for_user(note_id, user, required_role='viewer'):
     return perm.note, perm
 
 
-# Note List
+# Note List 
 @method_decorator(login_required, name='dispatch')
 class NoteListView(View):
     template_name = 'notes/list.html'
@@ -132,6 +132,8 @@ class NoteDetailView(View):
         return render(request, self.template_name, {
             'note': note,
             'perm': perm,
+            'can_edit': perm.can_edit,
+            'can_manage': perm.can_manage,
             'collaborators': collaborators,
             'owner': note.creator,
             'is_shared': note.creator != request.user,
@@ -214,7 +216,7 @@ class NoteRestoreVersionView(View):
         return redirect('notes:detail', pk=note.pk)
 
 
-# Save Version (manual snapshot)
+# Save Version (manual snapshot) 
 @method_decorator(login_required, name='dispatch')
 class SaveVersionView(View):
     def post(self, request, pk):
@@ -232,7 +234,7 @@ class SaveVersionView(View):
         return redirect('notes:history', pk=note.pk)
 
 
-# Share: create links, invite by email, manage collaborators, revoke access
+# Share: create link
 @method_decorator(login_required, name='dispatch')
 class NoteShareView(View):
     template_name = 'notes/share.html'
