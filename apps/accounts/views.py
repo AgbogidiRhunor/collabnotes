@@ -17,6 +17,14 @@ from .models import EmailVerificationToken, PasswordResetToken
 
 User = get_user_model()
 
+class LandingView(View):
+    template_name = 'accounts/landing_page.html'
+    
+    def get(self, request):
+        # Redirect authenticated users to their notes dashboard
+        if request.user.is_authenticated:
+            return redirect('notes:list')
+        return render(request, self.template_name)
 
 class RegisterView(View):
     template_name = 'accounts/register.html'
@@ -97,7 +105,7 @@ class LoginView(View):
 class LogoutView(View):
     def post(self, request):
         logout(request)
-        return redirect('accounts:login')
+        return redirect('accounts:landing_page') 
 
 
 class VerifyEmailView(View):

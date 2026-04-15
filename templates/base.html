@@ -2,62 +2,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}CollabNotes{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
-  {% block extra_head %}{% endblock %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CollabNotes - Write together. Think better.{% endblock %}</title>
+    <meta name="description" content="Real-time collaborative notes for teams, students, and creators.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand': {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Existing custom CSS (dark theme) for authenticated pages -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}bg-gradient-to-br from-slate-50 via-white to-slate-100 font-sans antialiased{% endblock %}">
 
-{% if user.is_authenticated %}
-<nav class="navbar">
-  <div class="nav-inner">
-
-    <a href="{% url 'notes:list' %}" class="nav-brand">
-      <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
-        <rect x="4" y="4" width="32" height="32" rx="8" fill="var(--accent)"/>
-        <path d="M12 14h16M12 20h10M12 26h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-      </svg>
-      <span>CollabNotes</span>
-    </a>
-
-    <div class="nav-links">
-      <a href="{% url 'notes:list' %}" class="nav-link {% block nav_notes %}{% endblock %}">Notes</a>
-      <a href="{% url 'workspaces:list' %}" class="nav-link {% block nav_workspaces %}{% endblock %}">Workspaces</a>
-    </div>
-
-    <div class="nav-actions">
-      <div class="nav-user">
-        <span class="avatar">{{ user.get_initials }}</span>
-        <div class="nav-dropdown">
-          <div class="dropdown-header">
-            <span class="dropdown-name">{{ user.display_name }}</span>
-            <span class="dropdown-email">{{ user.email }}</span>
+{% block navigation %}
+  {% if user.is_authenticated %}
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="{% url 'notes:list' %}" class="nav-brand">
+        <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
+          <rect x="4" y="4" width="32" height="32" rx="8" fill="var(--accent)"/>
+          <path d="M12 14h16M12 20h10M12 26h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span>CollabNotes</span>
+      </a>
+      <div class="nav-links">
+        <a href="{% url 'notes:list' %}" class="nav-link {% block nav_notes %}{% endblock %}">Notes</a>
+        <a href="{% url 'workspaces:list' %}" class="nav-link {% block nav_workspaces %}{% endblock %}">Workspaces</a>
+      </div>
+      <div class="nav-actions">
+        <div class="nav-user">
+          <span class="avatar">{{ user.get_initials }}</span>
+          <div class="nav-dropdown">
+            <div class="dropdown-header">
+              <span class="dropdown-name">{{ user.display_name }}</span>
+              <span class="dropdown-email">{{ user.email }}</span>
+            </div>
+            <a href="{% url 'accounts:profile' %}" class="dropdown-item">Profile</a>
+            <form method="post" action="{% url 'accounts:logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="dropdown-item dropdown-item--btn">Sign out</button>
+            </form>
           </div>
-          <a href="{% url 'accounts:profile' %}" class="dropdown-item">Profile</a>
-          <form method="post" action="{% url 'accounts:logout' %}">
-            {% csrf_token %}
-            <button type="submit" class="dropdown-item dropdown-item--btn">Sign out</button>
-          </form>
         </div>
       </div>
     </div>
-
-  </div>
-</nav>
-{% endif %}
+  </nav>
+  {% endif %}
+{% endblock %}
 
 {% include 'includes/messages.html' %}
 
-<main class="main {% block main_class %}{% endblock %}">
+<main class="{% block main_class %}{% endblock %}">
   {% block content %}{% endblock %}
 </main>
 
-{% block extra_scripts %}{% endblock %}
+<!-- Smooth scroll script -->
+<script>
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+</script>
 
 <script>
 (function () {
@@ -79,5 +135,7 @@
   });
 }());
 </script>
+
+{% block extra_scripts %}{% endblock %}
 </body>
 </html>

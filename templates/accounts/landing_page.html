@@ -1,0 +1,1077 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CollabNotes — Write together. Think better.</title>
+  <meta name="description" content="Real-time collaborative notes for teams, students, and creators." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* Reset & base */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 17px; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0d0d0f;
+      color: #eeede6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+
+    /* Design tokens */
+    :root {
+      --bg:         #0d0d0f;
+      --bg-1:       #111113;
+      --bg-2:       #17171a;
+      --bg-3:       #1e1e23;
+      --border:     rgba(255,255,255,0.07);
+      --border-2:   rgba(255,255,255,0.12);
+      --text:       #eeede6;
+      --text-2:     #a3a29c;
+      --text-muted: #585753;
+      --accent:     #c8a97a;
+      --accent-dim: rgba(200,169,122,0.12);
+      --accent-glow:rgba(200,169,122,0.06);
+      --green:      #6fcf97;
+      --blue:       #56b4e9;
+      --red:        #e05c5c;
+      --purple:     #b07fce;
+    }
+
+    /* ── Utility ──────────────────────────────────────────────────────────── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+    .serif { font-family: 'Lora', Georgia, serif; }
+
+    /* ── Navbar ───────────────────────────────────────────────────────────── */
+    .lp-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      background: rgba(13,13,15,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .lp-nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+    .lp-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .lp-brand-icon {
+      width: 34px; height: 34px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .lp-brand-icon svg { width: 18px; height: 18px; }
+    .lp-brand-name {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 1.25rem;
+      color: var(--text);
+    }
+    .lp-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .lp-nav-link {
+      padding: 0.5rem 1rem;
+      border-radius: 7px;
+      font-size: 0.95rem;
+      color: var(--text-2);
+      transition: color 0.15s, background 0.15s;
+    }
+    .lp-nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    .lp-nav-actions { display: flex; align-items: center; gap: 0.75rem; }
+
+    .btn-ghost-sm {
+      padding: 0.55rem 1.2rem;
+      border: 1px solid var(--border-2);
+      border-radius: 7px;
+      font-size: 0.95rem;
+      color: var(--text-2);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-ghost-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-accent {
+      padding: 0.6rem 1.4rem;
+      background: var(--accent);
+      color: #0d0d0f;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 7px;
+      transition: opacity 0.15s, transform 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .btn-accent:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    /* mobile hamburger */
+    .lp-hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 5px;
+    }
+    .lp-hamburger span {
+      display: block;
+      width: 26px; height: 2.5px;
+      background: var(--text-2);
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+    .lp-mobile-menu {
+      display: none;
+      position: fixed;
+      top: 70px; left: 0; right: 0;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      z-index: 99;
+    }
+    .lp-mobile-menu.open { display: block; }
+    .lp-mobile-menu a {
+      display: block;
+      padding: 0.75rem 0;
+      color: var(--text-2);
+      font-size: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .lp-mobile-menu a:last-child { border-bottom: none; }
+    .lp-mobile-menu .btn-accent { margin-top: 1rem; justify-content: center; }
+
+    /* ── Hero ─────────────────────────────────────────────────────────────── */
+    .hero {
+      padding: 160px 0 120px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Radial glow behind hero */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 600px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(200,169,122,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.4rem 1.2rem;
+      border: 1px solid var(--border-2);
+      border-radius: 99px;
+      font-size: 0.9rem;
+      color: var(--text-2);
+      margin-bottom: 2.5rem;
+      background: rgba(255,255,255,0.03);
+    }
+    .hero-eyebrow-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .hero-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: clamp(3rem, 7vw, 5rem);
+      font-weight: 400;
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 1.75rem;
+      max-width: 850px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero-title em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 1.2rem;
+      color: var(--text-2);
+      line-height: 1.7;
+      max-width: 580px;
+      margin: 0 auto 3rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero-primary {
+      padding: 0.95rem 2.4rem;
+      background: var(--accent);
+      color: #0d0d0f;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 24px rgba(200,169,122,0.25);
+    }
+    .btn-hero-primary:hover {
+      opacity: 0.88;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(200,169,122,0.35);
+    }
+
+    .btn-hero-secondary {
+      padding: 0.95rem 2rem;
+      border: 1px solid var(--border-2);
+      color: var(--text-2);
+      font-size: 1rem;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.15s;
+    }
+    .btn-hero-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .hero-note { margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-muted); }
+
+    /* ── Mock UI ──────────────────────────────────────────────────────────── */
+    .hero-mockup {
+      margin-top: 5rem;
+      position: relative;
+    }
+    .hero-mockup::before {
+      content: '';
+      position: absolute;
+      inset: -40px;
+      background: radial-gradient(ellipse at 50% 100%, rgba(200,169,122,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .mockup-window {
+      background: var(--bg-2);
+      border: 1px solid var(--border-2);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+      max-width: 950px;
+      margin: 0 auto;
+    }
+    .mockup-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.9rem 1.25rem;
+      background: var(--bg-3);
+      border-bottom: 1px solid var(--border);
+    }
+    .mockup-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .mockup-dot.red   { background: #e05c5c; }
+    .mockup-dot.amber { background: #c8a97a; }
+    .mockup-dot.green { background: #6fcf97; }
+    .mockup-url {
+      flex: 1;
+      height: 26px;
+      background: var(--bg);
+      border-radius: 5px;
+      max-width: 320px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mockup-url span { font-size: 0.8rem; color: var(--text-muted); font-family: monospace; }
+
+    .mockup-body {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+    }
+    .mockup-sidebar {
+      background: var(--bg-3);
+      border-right: 1px solid var(--border);
+      padding: 1.25rem;
+    }
+    .mockup-sidebar-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .mockup-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #0d0d0f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mockup-user-name { font-size: 0.85rem; color: var(--text-2); }
+    .mockup-note-item {
+      padding: 0.55rem 0.6rem;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .mockup-note-item.active { background: var(--accent-dim); color: var(--accent); }
+
+    .mockup-editor { padding: 1.75rem; }
+    .mockup-editor-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .mockup-collaborators { display: flex; }
+    .mockup-collab-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 2px solid var(--bg-2);
+      margin-left: -6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #0d0d0f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mockup-collab-avatar:first-child { margin-left: 0; }
+    .mockup-save-btn {
+      padding: 0.3rem 0.8rem;
+      background: var(--accent);
+      color: #0d0d0f;
+      border-radius: 5px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .mockup-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 1.3rem;
+      color: var(--text);
+      margin-bottom: 1rem;
+    }
+    .mockup-line { height: 10px; background: var(--bg-3); border-radius: 5px; margin-bottom: 10px; }
+    .mockup-line.w-full { width: 100%; }
+    .mockup-line.w-90 { width: 90%; }
+    .mockup-line.w-75 { width: 75%; }
+    .mockup-line.w-60 { width: 60%; }
+    .mockup-line.w-85 { width: 85%; }
+    /* Author highlight in mockup */
+    .mockup-highlight {
+      display: inline-block;
+      height: 10px;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    .mockup-highlight-row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .mockup-author-tag {
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .mockup-cursor {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--border);
+    }
+    .mockup-cursor-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .mockup-cursor-text { font-size: 0.8rem; color: var(--text-muted); }
+
+    /* ── Section shared styles ────────────────────────────────────────────── */
+    section { padding: 112px 0; }
+
+    .section-eyebrow {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+    .section-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.25;
+      margin-bottom: 1rem;
+    }
+    .section-sub {
+      font-size: 1.1rem;
+      color: var(--text-2);
+      line-height: 1.7;
+      max-width: 580px;
+    }
+    .section-header { margin-bottom: 4rem; }
+    .section-header.center { text-align: center; }
+    .section-header.center .section-sub { margin: 0 auto; }
+
+    /* ── Features grid ────────────────────────────────────────────────────── */
+    .features-section { background: var(--bg-1); }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature-card:hover {
+      border-color: var(--border-2);
+      transform: translateY(-3px);
+    }
+    .feature-icon {
+      width: 52px; height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.35rem;
+      flex-shrink: 0;
+    }
+    .feature-icon svg { width: 24px; height: 24px; }
+    .feature-icon.amber { background: rgba(200,169,122,0.15); color: var(--accent); }
+    .feature-icon.blue  { background: rgba(86,180,233,0.12); color: var(--blue); }
+    .feature-icon.green { background: rgba(111,207,151,0.12); color: var(--green); }
+    .feature-icon.purple{ background: rgba(176,127,206,0.12); color: var(--purple); }
+    .feature-icon.red   { background: rgba(224,92,92,0.12);   color: var(--red); }
+    .feature-icon.teal  { background: rgba(86,180,233,0.12); color: #5ce0c8; }
+
+    .feature-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .feature-desc { font-size: 0.95rem; color: var(--text-2); line-height: 1.65; }
+
+    /* ── How it works ─────────────────────────────────────────────────────── */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2.5rem;
+      position: relative;
+    }
+    /* Connector line between steps */
+    .steps-grid::before {
+      content: '';
+      position: absolute;
+      top: 34px;
+      left: calc(12.5% + 34px);
+      right: calc(12.5% + 34px);
+      height: 1.5px;
+      background: linear-gradient(to right, var(--border-2), var(--accent), var(--border-2));
+    }
+    .step { text-align: center; position: relative; }
+    .step-number {
+      width: 68px; height: 68px;
+      border-radius: 16px;
+      font-family: 'Lora', Georgia, serif;
+      font-size: 1.7rem;
+      font-weight: 400;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+    .step-number.s1 { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(200,169,122,0.3); }
+    .step-number.s2 { background: rgba(86,180,233,0.1); color: var(--blue); border: 1px solid rgba(86,180,233,0.25); }
+    .step-number.s3 { background: rgba(111,207,151,0.1); color: var(--green); border: 1px solid rgba(111,207,151,0.25); }
+    .step-number.s4 { background: rgba(176,127,206,0.1); color: var(--purple); border: 1px solid rgba(176,127,206,0.25); }
+    .step-title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+    .step-desc { font-size: 0.95rem; color: var(--text-2); line-height: 1.65; }
+
+    /* ── Use cases ────────────────────────────────────────────────────────── */
+    .use-cases-section { background: var(--bg-1); }
+    .use-cases-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+    .use-case-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem 1.75rem;
+      text-align: center;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .use-case-card:hover { border-color: var(--border-2); transform: translateY(-2px); }
+    .use-case-emoji { font-size: 2.5rem; margin-bottom: 1rem; }
+    .use-case-title { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+    .use-case-desc { font-size: 0.95rem; color: var(--text-2); line-height: 1.6; }
+
+    /* ── Testimonials ─────────────────────────────────────────────────────── */
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+    .testimonial-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+    }
+    .testimonial-quote {
+      font-size: 1rem;
+      color: var(--text-2);
+      line-height: 1.75;
+      margin-bottom: 1.5rem;
+      font-style: italic;
+    }
+    .testimonial-quote::before { content: '"'; color: var(--accent); font-size: 1.6rem; font-family: 'Lora', serif; line-height: 0; vertical-align: -0.35em; margin-right: 3px; }
+    .testimonial-author { display: flex; align-items: center; gap: 0.8rem; }
+    .testimonial-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #0d0d0f;
+      flex-shrink: 0;
+    }
+    .testimonial-name { font-size: 1rem; font-weight: 500; color: var(--text); }
+    .testimonial-role { font-size: 0.88rem; color: var(--text-muted); }
+
+    /* ── CTA section ──────────────────────────────────────────────────────── */
+    .cta-section {
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 700px; height: 400px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(200,169,122,0.08) 0%, transparent 70%);
+    }
+    .cta-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: clamp(2.25rem, 4.5vw, 3.5rem);
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 1.25rem;
+      position: relative;
+    }
+    .cta-sub {
+      font-size: 1.15rem;
+      color: var(--text-2);
+      margin-bottom: 2.75rem;
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.7;
+    }
+    .cta-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      position: relative;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    footer {
+      background: var(--bg-1);
+      border-top: 1px solid var(--border);
+      padding: 3rem 0;
+    }
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+    .footer-brand { display: flex; align-items: center; gap: 0.6rem; }
+    .footer-brand-icon {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .footer-brand-name {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 1.05rem;
+      color: var(--text-2);
+    }
+    .footer-links { display: flex; gap: 2.5rem; }
+    .footer-link {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      transition: color 0.15s;
+    }
+    .footer-link:hover { color: var(--accent); }
+    .footer-copy { font-size: 0.88rem; color: var(--text-muted); }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 960px) {
+      html { font-size: 16px; }
+      .container { padding: 0 1.75rem; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps-grid::before { display: none; }
+      .use-cases-grid { grid-template-columns: repeat(2, 1fr); }
+      .testimonials-grid { grid-template-columns: 1fr; }
+      .mockup-body { grid-template-columns: 1fr; }
+      .mockup-sidebar { display: none; }
+    }
+
+    @media (max-width: 640px) {
+      html { font-size: 15px; }
+      .container { padding: 0 1.25rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .steps-grid { grid-template-columns: 1fr; }
+      .use-cases-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero { padding: 130px 0 90px; }
+      section { padding: 80px 0; }
+      .lp-nav-links { display: none; }
+      .lp-hamburger { display: flex; }
+      .lp-nav-actions .btn-ghost-sm { display: none; }
+      .footer-links { gap: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="lp-nav">
+  <div class="container">
+    <a href="#" class="lp-brand">
+      <div class="lp-brand-icon">
+        <svg viewBox="0 0 40 40" fill="none">
+          <path d="M10 12h20M10 18h14M10 24h16" stroke="#0d0d0f" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="lp-brand-name">CollabNotes</span>
+    </a>
+
+    <div class="lp-nav-links">
+      <a href="#features" class="lp-nav-link">Features</a>
+      <a href="#how-it-works" class="lp-nav-link">How it works</a>
+      <a href="#use-cases" class="lp-nav-link">Use cases</a>
+    </div>
+
+    <div class="lp-nav-actions">
+      <a href="{% url 'accounts:login' %}" class="btn-ghost-sm">Sign in</a>
+      <a href="{% url 'accounts:register' %}" class="btn-accent">
+        Get started
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+      </a>
+    </div>
+
+    <button class="lp-hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<div class="lp-mobile-menu" id="mobile-menu">
+  <a href="#features" onclick="toggleMenu()">Features</a>
+  <a href="#how-it-works" onclick="toggleMenu()">How it works</a>
+  <a href="#use-cases" onclick="toggleMenu()">Use cases</a>
+  <a href="{% url 'accounts:login' %}" onclick="toggleMenu()">Sign in</a>
+  <a href="{% url 'accounts:register' %}" class="btn-accent" onclick="toggleMenu()">Get started →</a>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">
+      <span class="hero-eyebrow-dot"></span>
+      Real-time collaboration, reimagined
+    </div>
+
+    <h1 class="hero-title serif">
+      Write together.<br>
+      <em>Think better.</em>
+    </h1>
+
+    <p class="hero-sub">
+      Collaborative notes for teams, students, and creators. Edit together in real time, track every change, and stay in sync — always.
+    </p>
+
+    <div class="hero-actions">
+      <a href="{% url 'accounts:register' %}" class="btn-hero-primary">
+        Start for free
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+      </a>
+      <a href="#features" class="btn-hero-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 8 16 12 12 16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        See features
+      </a>
+    </div>
+
+    <p class="hero-note">No credit card required</p>
+
+    <!-- Mock app UI -->
+    <div class="hero-mockup">
+      <div class="mockup-window">
+        <div class="mockup-titlebar">
+          <span class="mockup-dot red"></span>
+          <span class="mockup-dot amber"></span>
+          <span class="mockup-dot green"></span>
+          <div class="mockup-url"><span>collabnotes.app/notes/team-standup</span></div>
+        </div>
+        <div class="mockup-body">
+          <div class="mockup-sidebar">
+            <div class="mockup-sidebar-header">
+              <div class="mockup-avatar">JD</div>
+              <span class="mockup-user-name">Jamie D.</span>
+            </div>
+            <div class="mockup-note-item active">📋 Team Standup</div>
+            <div class="mockup-note-item">🚀 Q2 Planning</div>
+            <div class="mockup-note-item">📝 API Docs</div>
+            <div class="mockup-note-item">💡 Ideas</div>
+          </div>
+          <div class="mockup-editor">
+            <div class="mockup-editor-topbar">
+              <span style="font-size:0.72rem;color:var(--text-muted)">← Notes</span>
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <span style="font-size:0.7rem;color:var(--green)">All changes saved</span>
+                <div class="mockup-collaborators">
+                  <div class="mockup-collab-avatar" style="background:#c8a97a">JD</div>
+                  <div class="mockup-collab-avatar" style="background:#56b4e9">SA</div>
+                  <div class="mockup-collab-avatar" style="background:#6fcf97">MR</div>
+                </div>
+                <span class="mockup-save-btn">Save</span>
+              </div>
+            </div>
+            <div class="mockup-title">Team Standup — 15 Apr</div>
+            <div class="mockup-line w-full"></div>
+            <div class="mockup-highlight-row">
+              <div class="mockup-highlight" style="width:62%;background:rgba(200,169,122,0.2)"></div>
+              <div class="mockup-author-tag" style="background:rgba(200,169,122,0.15);color:var(--accent)">Jamie</div>
+            </div>
+            <div class="mockup-highlight-row">
+              <div class="mockup-highlight" style="width:78%;background:rgba(86,180,233,0.15)"></div>
+              <div class="mockup-author-tag" style="background:rgba(86,180,233,0.12);color:var(--blue)">Sarah</div>
+            </div>
+            <div class="mockup-line w-75"></div>
+            <div class="mockup-highlight-row">
+              <div class="mockup-highlight" style="width:55%;background:rgba(111,207,151,0.15)"></div>
+              <div class="mockup-author-tag" style="background:rgba(111,207,151,0.12);color:var(--green)">Marcus</div>
+            </div>
+            <div class="mockup-line w-60"></div>
+            <div class="mockup-cursor">
+              <div class="mockup-cursor-dot" style="background:var(--blue)"></div>
+              <span class="mockup-cursor-text">Sarah is editing…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features" class="features-section">
+  <div class="container">
+    <div class="section-header center">
+      <div class="section-eyebrow">Features</div>
+      <h2 class="section-title">Everything your team needs</h2>
+      <p class="section-sub">Powerful features built for seamless collaboration, security, and productivity.</p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon amber">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <div class="feature-title">Real-time Editing</div>
+        <p class="feature-desc">Edit notes simultaneously with your team. Changes appear instantly — no refresh needed.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon blue">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <div class="feature-title">Author Highlights</div>
+        <p class="feature-desc">Every edit is colour-coded by author. Hover any text to see exactly who wrote it.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon green">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+        <div class="feature-title">Role-based Access</div>
+        <p class="feature-desc">Control who can view, edit, or manage notes with granular Owner, Editor, and Viewer roles.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon purple">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="feature-title">Version History</div>
+        <p class="feature-desc">Every save creates a snapshot. Browse the full history and restore any previous version instantly.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon teal">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+        </div>
+        <div class="feature-title">Easy Sharing</div>
+        <p class="feature-desc">Share via email invite or a time-limited link. Recipients get the exact access level you set.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon red">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+        </div>
+        <div class="feature-title">Workspaces</div>
+        <p class="feature-desc">Organise notes into colour-coded folders. Share entire workspaces with your team in one click.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-header center">
+      <div class="section-eyebrow">How it works</div>
+      <h2 class="section-title">Up and running in minutes</h2>
+      <p class="section-sub">No complicated setup. Start collaborating right away.</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-number s1">1</div>
+        <div class="step-title">Create a note</div>
+        <p class="step-desc">Start with a blank note or organise inside a workspace.</p>
+      </div>
+      <div class="step">
+        <div class="step-number s2">2</div>
+        <div class="step-title">Invite your team</div>
+        <p class="step-desc">Share via email or a link. Set viewer or editor permissions.</p>
+      </div>
+      <div class="step">
+        <div class="step-number s3">3</div>
+        <div class="step-title">Edit together</div>
+        <p class="step-desc">Write simultaneously. Each person's text is colour-coded.</p>
+      </div>
+      <div class="step">
+        <div class="step-number s4">4</div>
+        <div class="step-title">Review history</div>
+        <p class="step-desc">Browse every version and restore previous states anytime.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Use cases -->
+<section id="use-cases" class="use-cases-section">
+  <div class="container">
+    <div class="section-header center">
+      <div class="section-eyebrow">Use cases</div>
+      <h2 class="section-title">Built for everyone</h2>
+      <p class="section-sub">CollabNotes adapts to your workflow, whatever you do.</p>
+    </div>
+
+    <div class="use-cases-grid">
+      <div class="use-case-card">
+        <div class="use-case-emoji">🎓</div>
+        <div class="use-case-title">Students</div>
+        <p class="use-case-desc">Group projects, shared study notes, and collaborative research papers.</p>
+      </div>
+      <div class="use-case-card">
+        <div class="use-case-emoji">💼</div>
+        <div class="use-case-title">Teams</div>
+        <p class="use-case-desc">Meeting notes, project planning, sprint docs, and team knowledge bases.</p>
+      </div>
+      <div class="use-case-card">
+        <div class="use-case-emoji">💻</div>
+        <div class="use-case-title">Developers</div>
+        <p class="use-case-desc">Technical docs, API specs, architecture notes, and runbooks.</p>
+      </div>
+      <div class="use-case-card">
+        <div class="use-case-emoji">✍️</div>
+        <div class="use-case-title">Writers</div>
+        <p class="use-case-desc">Co-authored drafts, editorial feedback, and revision tracking.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section>
+  <div class="container">
+    <div class="section-header center">
+      <div class="section-eyebrow">Testimonials</div>
+      <h2 class="section-title">Trusted by teams worldwide</h2>
+    </div>
+
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <p class="testimonial-quote">CollabNotes transformed how our team works. Real-time editing is seamless, and version history saves us constantly.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar" style="background:var(--accent)">SC</div>
+          <div>
+            <div class="testimonial-name">Sarah Chen</div>
+            <div class="testimonial-role">Product Manager</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-quote">Finally a note-taking app developers actually want to use. Fast, reliable, and great for technical documentation.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar" style="background:var(--blue)">MR</div>
+          <div>
+            <div class="testimonial-name">Marcus Rodriguez</div>
+            <div class="testimonial-role">Engineering Lead</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <p class="testimonial-quote">Perfect for research collaborations. My lab group uses it daily for experiment notes and paper drafts.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar" style="background:var(--purple)">EW</div>
+          <div>
+            <div class="testimonial-name">Emily Watson</div>
+            <div class="testimonial-role">PhD Student</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2 class="cta-title serif">Start collaborating today</h2>
+    <p class="cta-sub">Join teams who write together and think better with CollabNotes.</p>
+    <div class="cta-actions">
+      <a href="{% url 'accounts:register' %}" class="btn-hero-primary">
+        Create free account
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+      </a>
+      <a href="{% url 'accounts:login' %}" class="btn-hero-secondary">
+        Sign in
+      </a>
+    </div>
+    <p class="hero-note" style="margin-top:1.5rem">No credit card required</p>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-brand-icon">
+          <svg width="12" height="12" viewBox="0 0 40 40" fill="none">
+            <path d="M10 12h20M10 18h14M10 24h16" stroke="#0d0d0f" stroke-width="3.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="footer-brand-name">CollabNotes</span>
+      </div>
+
+      <div class="footer-links">
+        <a href="#features" class="footer-link">Features</a>
+        <a href="#how-it-works" class="footer-link">How it works</a>
+        <a href="{% url 'accounts:register' %}" class="footer-link">Sign up</a>
+        <a href="{% url 'accounts:login' %}" class="footer-link">Sign in</a>
+      </div>
+
+      <div class="footer-copy">© 2026 CollabNotes</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function toggleMenu() {
+    document.getElementById('mobile-menu').classList.toggle('open');
+  }
+  // Close mobile menu on nav link click
+  document.querySelectorAll('.lp-mobile-menu a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function() {
+      document.getElementById('mobile-menu').classList.remove('open');
+    });
+  });
+</script>
+
+</body>
+</html>
