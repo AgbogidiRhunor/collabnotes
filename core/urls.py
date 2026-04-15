@@ -5,11 +5,17 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('apps.accounts.urls', namespace='accounts')),
-    path('accounts/', include('apps.accounts.urls', namespace='accounts')),
-    path('notes/', include('apps.notes.urls', namespace='notes')),
-    path('workspaces/', include('apps.workspaces.urls', namespace='workspaces')),
+
+    # Accounts (root routes)
+    path('', include(('apps.accounts.urls', 'accounts'), namespace='accounts')),
+
+    # Notes app
+    path('notes/', include(('apps.notes.urls', 'notes'), namespace='notes')),
+
+    # Workspaces app
+    path('workspaces/', include(('apps.workspaces.urls', 'workspaces'), namespace='workspaces')),
 ]
 
+# Serve media files only in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
