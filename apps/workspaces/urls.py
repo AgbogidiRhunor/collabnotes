@@ -11,4 +11,5 @@ urlpatterns = [
     path('<uuid:pk>/delete/', views.WorkspaceDeleteView.as_view(), name='delete'),
     path('<uuid:pk>/share/', views.WorkspaceShareView.as_view(), name='share'),
     path('join/<str:token>/', views.WorkspaceJoinView.as_view(), name='join'),
+    path('invite/<str:token>/<str:action>/', views.WorkspaceInviteRespondView.as_view(), name='invite_respond'),
 ]

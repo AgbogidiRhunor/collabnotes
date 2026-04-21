@@ -2,14 +2,17 @@ import bleach
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
 from django.db import transaction
+from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
 from django.views import View
 
 from .forms import NoteForm, ShareLinkForm, InviteByEmailForm, VersionLabelForm
-from .models import Note, NotePermission, NoteVersion, ShareLink
+from .models import Note, NotePermission, NoteInvite, NoteVersion, ShareLink
 
 User = get_user_model()
 
@@ -25,26 +28,51 @@ def sanitize(html):
 
 def get_note_for_user(note_id, user, required_role='viewer'):
     """
-    Fetch a note and verify the user holds at least required_role.
-    Returns (note, permission).
-    Raises 404 for missing notes AND for notes the user cannot see — prevents IDOR.
+    Returns (note, perm) or raises Http404.
+    Also grants access if the user has workspace-level permission for the note's workspace.
     """
+    from django.http import Http404
     rank = {'owner': 3, 'editor': 2, 'viewer': 1}
+
+    # Check direct NotePermission first
     try:
         perm = NotePermission.objects.select_related('note').get(
             note_id=note_id,
             user=user,
             note__is_deleted=False,
         )
+        if rank.get(perm.role, 0) >= rank[required_role]:
+            return perm.note, perm
+        raise Http404
     except NotePermission.DoesNotExist:
-        from django.http import Http404
+        pass
+
+    # Feature 3: check workspace-level access
+    # If the note belongs to a workspace and the user has workspace permission,
+    # synthesise a viewer perm (or editor if workspace role is editor)
+    try:
+        note = Note.objects.get(pk=note_id, is_deleted=False)
+    except Note.DoesNotExist:
         raise Http404
 
-    if rank.get(perm.role, 0) < rank[required_role]:
-        from django.http import Http404
-        raise Http404
+    if note.workspace_id:
+        from apps.workspaces.models import WorkspacePermission
+        try:
+            ws_perm = WorkspacePermission.objects.get(
+                workspace_id=note.workspace_id,
+                user=user,
+            )
+            # Synthesise: workspace viewers get note-viewer, workspace editors get note-viewer
+            # (they need explicit NotePermission to edit — feature 3 spec)
+            synthetic_role = 'viewer'
+            if rank.get(synthetic_role, 0) >= rank[required_role]:
+                # Create a temporary unsaved perm object to return
+                perm = NotePermission(note=note, user=user, role=synthetic_role)
+                return note, perm
+        except WorkspacePermission.DoesNotExist:
+            pass
 
-    return perm.note, perm
+    raise Http404
 
 
 # Note List 
@@ -53,33 +81,42 @@ class NoteListView(View):
     template_name = 'notes/list.html'
 
     def get(self, request):
-        # All notes the user has any permission on
         permissions = (
             NotePermission.objects
             .filter(user=request.user, note__is_deleted=False)
-            .select_related('note', 'note__workspace')
+            .select_related('note', 'note__workspace', 'note__creator')
             .order_by('-note__updated_at')
         )
-        workspace_filter = request.GET.get('workspace')
-        if workspace_filter:
-            permissions = permissions.filter(note__workspace_id=workspace_filter)
 
         notes_with_role = [
             {'note': p.note, 'role': p.role, 'can_edit': p.can_edit}
             for p in permissions
         ]
 
-        from apps.workspaces.models import Workspace
-        workspaces = Workspace.objects.filter(owner=request.user, is_deleted=False)
+        # Pending invites for dashboard display
+        pending_note_invites = (
+            NoteInvite.objects
+            .filter(invited_user=request.user, status='pending')
+            .select_related('note', 'invited_by')
+            .order_by('-created_at')
+        )
+
+        from apps.workspaces.models import WorkspaceInvite
+        pending_workspace_invites = (
+            WorkspaceInvite.objects
+            .filter(invited_user=request.user, status='pending')
+            .select_related('workspace', 'invited_by')
+            .order_by('-created_at')
+        )
 
         return render(request, self.template_name, {
             'notes_with_role': notes_with_role,
-            'workspaces': workspaces,
-            'active_workspace': workspace_filter,
+            'pending_note_invites': pending_note_invites,
+            'pending_workspace_invites': pending_workspace_invites,
         })
 
 
-# Note Create 
+# Note Create
 @method_decorator(login_required, name='dispatch')
 class NoteCreateView(View):
     template_name = 'notes/create.html'
@@ -115,8 +152,7 @@ class NoteCreateView(View):
         return render(request, self.template_name, {'form': form})
 
 
-
-# Note Detail / Editor
+# Note Detail / Editor 
 @method_decorator(login_required, name='dispatch')
 class NoteDetailView(View):
     template_name = 'notes/detail.html'
@@ -129,12 +165,21 @@ class NoteDetailView(View):
             .select_related('user')
             .order_by('created_at')
         )
+        # Last 10 versions for inline history panel
+        versions = note.versions.select_related('saved_by').all()[:10]
+
+        can_edit = perm.can_edit
+        can_manage = perm.can_manage
+
         return render(request, self.template_name, {
             'note': note,
             'perm': perm,
-            'can_edit': perm.can_edit,
-            'can_manage': perm.can_manage,
+            'can_edit': can_edit,
+            'can_manage': can_manage,
+            # Feature 4: only owner can rename
+            'can_rename': can_manage,
             'collaborators': collaborators,
+            'versions': versions,
             'owner': note.creator,
             'is_shared': note.creator != request.user,
         })
@@ -142,11 +187,14 @@ class NoteDetailView(View):
     def post(self, request, pk):
         note, perm = get_note_for_user(pk, request.user, required_role='editor')
 
-        title   = request.POST.get('title', '').strip()[:500]
         content = sanitize(request.POST.get('content', ''))
         workspace_id = request.POST.get('workspace') or None
 
-        note.title   = title or 'Untitled Note'
+        # Feature 4: only owner can change the title
+        if perm.can_manage:
+            title = request.POST.get('title', '').strip()[:500]
+            note.title = title or 'Untitled Note'
+
         note.content = content
         if workspace_id:
             note.workspace_id = workspace_id
@@ -173,24 +221,32 @@ class NoteDeleteView(View):
 
     def post(self, request, pk):
         note, perm = get_note_for_user(pk, request.user, required_role='owner')
+        title = note.title
         note.delete()
-        messages.success(request, f'"{note.title}" has been permanently deleted.')
+        messages.success(request, f'"{title}" has been permanently deleted.')
         return redirect('notes:list')
 
 
-# Version History 
+# Inline Version History (replaces separate history page) 
 @method_decorator(login_required, name='dispatch')
-class NoteHistoryView(View):
-    template_name = 'notes/history.html'
+class NoteVersionsView(View):
+    """Returns last 10 versions as JSON for the inline history panel."""
 
     def get(self, request, pk):
         note, perm = get_note_for_user(pk, request.user, required_role='viewer')
-        versions = note.versions.select_related('saved_by').all()
-        return render(request, self.template_name, {
-            'note': note,
-            'perm': perm,
-            'versions': versions,
-        })
+        versions = list(
+            note.versions
+            .select_related('saved_by')
+            .values('id', 'title_snapshot', 'label', 'created_at', 'saved_by__display_name')
+            [:10]
+        )
+        # Format dates for display
+        from django.utils.timesince import timesince
+        for v in versions:
+            v['id'] = str(v['id'])
+            v['time_ago'] = timesince(v['created_at']) + ' ago'
+            v['created_at'] = v['created_at'].strftime('%b %d, %Y %H:%M')
+        return JsonResponse({'versions': versions})
 
 
 @method_decorator(login_required, name='dispatch')
@@ -200,41 +256,23 @@ class NoteRestoreVersionView(View):
         version = get_object_or_404(NoteVersion, pk=version_pk, note=note)
 
         with transaction.atomic():
-            # Snapshot current state before overwriting
             NoteVersion.objects.create(
                 note=note,
                 title_snapshot=note.title,
                 content_snapshot=note.content,
                 saved_by=request.user,
-                label=f'Auto-saved before restore to "{version.label or version.created_at:%Y-%m-%d %H:%M}"',
+                label=f'Auto-saved before restore',
             )
-            note.title = version.title_snapshot
+            if perm.can_manage:
+                note.title = version.title_snapshot
             note.content = version.content_snapshot
             note.save(update_fields=['title', 'content', 'updated_at'])
 
-        messages.success(request, 'Note restored to selected version.')
+        messages.success(request, 'Note restored.')
         return redirect('notes:detail', pk=note.pk)
 
 
-# Save Version (manual snapshot) 
-@method_decorator(login_required, name='dispatch')
-class SaveVersionView(View):
-    def post(self, request, pk):
-        note, perm = get_note_for_user(pk, request.user, required_role='editor')
-        form = VersionLabelForm(request.POST)
-        if form.is_valid():
-            NoteVersion.objects.create(
-                note=note,
-                title_snapshot=note.title,
-                content_snapshot=note.content,
-                saved_by=request.user,
-                label=form.cleaned_data['label'],
-            )
-            messages.success(request, 'Version saved.')
-        return redirect('notes:history', pk=note.pk)
-
-
-# Share: create link
+# Share
 @method_decorator(login_required, name='dispatch')
 class NoteShareView(View):
     template_name = 'notes/share.html'
@@ -244,9 +282,8 @@ class NoteShareView(View):
         share_form = ShareLinkForm()
         invite_form = InviteByEmailForm()
         links = note.share_links.filter(is_active=True).order_by('-created_at')
-        collaborators = (
-            note.permissions.select_related('user').order_by('created_at')
-        )
+        collaborators = note.permissions.select_related('user').order_by('created_at')
+        pending_invites = note.invites.filter(status='pending').select_related('invited_user')
         return render(request, self.template_name, {
             'note': note,
             'perm': perm,
@@ -254,6 +291,7 @@ class NoteShareView(View):
             'invite_form': invite_form,
             'links': links,
             'collaborators': collaborators,
+            'pending_invites': pending_invites,
         })
 
     def post(self, request, pk):
@@ -262,43 +300,41 @@ class NoteShareView(View):
 
         if action == 'create_link':
             share_form = ShareLinkForm(request.POST)
-            invite_form = InviteByEmailForm()
             if share_form.is_valid():
-                link = ShareLink.create(
+                ShareLink.create(
                     note=note,
                     created_by=request.user,
                     role=share_form.cleaned_data['role'],
                     days=share_form.cleaned_data['days'],
                 )
-                messages.success(
-                    request,
-                    f'Share link created. Copy it from below.'
-                )
-                return redirect('notes:share', pk=note.pk)
+                messages.success(request, 'Share link created.')
+            return redirect('notes:share', pk=note.pk)
 
         elif action == 'invite_email':
-            share_form = ShareLinkForm()
             invite_form = InviteByEmailForm(request.POST)
             if invite_form.is_valid():
                 email = invite_form.cleaned_data['email'].lower()
                 role = invite_form.cleaned_data['role']
                 try:
                     invited_user = User.objects.get(email=email)
-                    NotePermission.objects.update_or_create(
-                        note=note,
-                        user=invited_user,
-                        defaults={'role': role, 'granted_by': request.user},
-                    )
-                    messages.success(request, f'{email} added as {role}.')
+                    if invited_user == request.user:
+                        messages.error(request, 'You cannot invite yourself.')
+                    else:
+                        invite = NoteInvite.create(
+                            note=note,
+                            invited_by=request.user,
+                            invited_user=invited_user,
+                            role=role,
+                        )
+                        self._send_invite_email(request, note, invite, invited_user, role)
+                        messages.success(request, f'Invitation sent to {email}.')
                 except User.DoesNotExist:
                     messages.error(request, 'No account found with that email.')
-                return redirect('notes:share', pk=note.pk)
+            return redirect('notes:share', pk=note.pk)
 
         elif action == 'revoke_link':
             link_id = request.POST.get('link_id')
-            ShareLink.objects.filter(
-                id=link_id, note=note
-            ).update(is_active=False)
+            ShareLink.objects.filter(id=link_id, note=note).update(is_active=False)
             messages.success(request, 'Link revoked.')
             return redirect('notes:share', pk=note.pk)
 
@@ -321,17 +357,53 @@ class NoteShareView(View):
                 messages.success(request, 'Role updated.')
             return redirect('notes:share', pk=note.pk)
 
-        # Re-render with errors
-        links = note.share_links.filter(is_active=True).order_by('-created_at')
-        collaborators = note.permissions.select_related('user').order_by('created_at')
-        return render(request, self.template_name, {
+        return redirect('notes:share', pk=note.pk)
+
+    def _send_invite_email(self, request, note, invite, invited_user, role):
+        accept_url = request.build_absolute_uri(f'/notes/invite/{invite.token}/accept/')
+        decline_url = request.build_absolute_uri(f'/notes/invite/{invite.token}/decline/')
+        html = render_to_string('emails/note_invite.html', {
             'note': note,
-            'perm': perm,
-            'share_form': share_form,
-            'invite_form': invite_form,
-            'links': links,
-            'collaborators': collaborators,
+            'invited_by': request.user,
+            'invited_user': invited_user,
+            'role': role,
+            'accept_url': accept_url,
+            'decline_url': decline_url,
         })
+        send_mail(
+            subject=f'{request.user.display_name} invited you to a note on CollabNotes',
+            message=f'You have been invited to "{note.title}". Accept: {accept_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[invited_user.email],
+            html_message=html,
+            fail_silently=True,
+        )
+
+
+# Invite accept/decline 
+@method_decorator(login_required, name='dispatch')
+class NoteInviteRespondView(View):
+    def get(self, request, token, action):
+        try:
+            invite = NoteInvite.objects.select_related('note', 'invited_by').get(
+                token=token,
+                invited_user=request.user,
+                status='pending',
+            )
+        except NoteInvite.DoesNotExist:
+            messages.error(request, 'This invitation is invalid or has already been responded to.')
+            return redirect('notes:list')
+
+        if action == 'accept':
+            invite.accept()
+            messages.success(request, f'You now have access to "{invite.note.title}".')
+            return redirect('notes:detail', pk=invite.note.pk)
+        elif action == 'decline':
+            invite.decline()
+            messages.info(request, f'You declined the invitation to "{invite.note.title}".')
+            return redirect('notes:list')
+
+        return redirect('notes:list')
 
 
 # Join via share link 

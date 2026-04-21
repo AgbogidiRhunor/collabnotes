@@ -56,6 +56,71 @@ class WorkspacePermission(models.Model):
         return f'{self.user} — {self.role} on "{self.workspace}"'
 
 
+class WorkspaceInvite(models.Model):
+    """Pending email invitation to a workspace."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        ACCEPTED = 'accepted', 'Accepted'
+        DECLINED = 'declined', 'Declined'
+
+    class Role(models.TextChoices):
+        EDITOR = 'editor', 'Editor'
+        VIEWER = 'viewer', 'Viewer'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='invites')
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sent_workspace_invites',
+    )
+    invited_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='received_workspace_invites',
+    )
+    role = models.CharField(max_length=10, choices=Role.choices, default=Role.VIEWER)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'workspaces_invite'
+        unique_together = [('workspace', 'invited_user')]
+        indexes = [models.Index(fields=['invited_user', 'status'])]
+
+    @classmethod
+    def create(cls, workspace, invited_by, invited_user, role):
+        cls.objects.filter(workspace=workspace, invited_user=invited_user).delete()
+        return cls.objects.create(
+            workspace=workspace,
+            invited_by=invited_by,
+            invited_user=invited_user,
+            role=role,
+            token=secrets.token_urlsafe(32),
+        )
+
+    def accept(self):
+        WorkspacePermission.objects.update_or_create(
+            workspace=self.workspace,
+            user=self.invited_user,
+            defaults={'role': self.role, 'granted_by': self.invited_by},
+        )
+        self.status = self.Status.ACCEPTED
+        self.responded_at = timezone.now()
+        self.save(update_fields=['status', 'responded_at'])
+
+    def decline(self):
+        self.status = self.Status.DECLINED
+        self.responded_at = timezone.now()
+        self.save(update_fields=['status', 'responded_at'])
+
+    def __str__(self):
+        return f'Invite: {self.invited_user} to "{self.workspace}" as {self.role}'
+
+
 class WorkspaceShareLink(models.Model):
     class Role(models.TextChoices):
         EDITOR = 'editor', 'Editor'

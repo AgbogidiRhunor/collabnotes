@@ -1,4 +1,9 @@
-/* Variables */
+/* ── CollabNotes Stylesheet ──────────────────────────────────────────────────
+   Dark editorial theme.
+   Fonts: Lora (headings/titles) · Inter (UI) · JetBrains Mono (code)
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── Variables ───────────────────────────────────────────────────────────── */
 :root {
   --bg:            #111113;
   --bg-surface:    #18181b;
@@ -38,7 +43,7 @@
   --dur:           140ms;
 }
 
-/* Reset */
+/* ── Reset ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 15px; -webkit-font-smoothing: antialiased; }
 body {
@@ -52,7 +57,7 @@ a:hover { text-decoration: underline; }
 button { cursor: pointer; font-family: inherit; }
 img { display: block; max-width: 100%; }
 
-/* Navbar */
+/* ── Navbar ──────────────────────────────────────────────────────────────── */
 .navbar {
   position: sticky;
   top: 0;
@@ -142,7 +147,7 @@ img { display: block; max-width: 100%; }
   cursor: pointer;
 }
 
-/* Avatar */
+/* ── Avatar ──────────────────────────────────────────────────────────────── */
 .avatar {
   width: 32px; height: 32px;
   border-radius: 50%;
@@ -159,7 +164,7 @@ img { display: block; max-width: 100%; }
 .avatar--sm { width: 26px; height: 26px; font-size: 0.63rem; }
 .avatar--lg { width: 52px; height: 52px; font-size: 1.1rem; }
 
-/* Buttons */
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -249,7 +254,7 @@ img { display: block; max-width: 100%; }
   border-color: var(--red) !important;
 }
 
-/* Forms */
+/* ── Forms ───────────────────────────────────────────────────────────────── */
 .field-group {
   display: flex;
   flex-direction: column;
@@ -323,7 +328,7 @@ img { display: block; max-width: 100%; }
 .inline-fields .field-group { margin-bottom: 0; }
 .inline-fields .btn-primary { flex-shrink: 0; align-self: flex-end; margin-bottom: 0; }
 
-/* Layout */
+/* ── Layout ──────────────────────────────────────────────────────────────── */
 .main { padding: 2rem 1.25rem; min-height: calc(100dvh - var(--nav-h)); }
 
 .page-wrap {
@@ -355,7 +360,7 @@ img { display: block; max-width: 100%; }
 .page-sub a { color: var(--text-2); }
 .page-sub a:hover { color: var(--accent); }
 
-/* Cards */
+/* ── Cards ───────────────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -400,7 +405,7 @@ img { display: block; max-width: 100%; }
 }
 .message-close:hover { opacity: 1; }
 
-/* Auth screens */
+/* ── Auth screens ─────────────────────────────────────────────────────────── */
 .main:has(.auth-wrap) { display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
 
 .auth-wrap {
@@ -450,7 +455,7 @@ img { display: block; max-width: 100%; }
   margin-top: 1.25rem;
 }
 
-/* Notes grid */
+/* ── Notes grid ──────────────────────────────────────────────────────────── */
 .notes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -520,7 +525,7 @@ img { display: block; max-width: 100%; }
   opacity: 0.8;
 }
 
-/* Role badge */
+/* ── Role badge ──────────────────────────────────────────────────────────── */
 .role-badge {
   font-size: 0.68rem;
   font-weight: 600;
@@ -534,7 +539,7 @@ img { display: block; max-width: 100%; }
 .role-badge--editor { background: rgba(86,180,233,0.12); color: var(--blue); }
 .role-badge--viewer { background: var(--bg-active); color: var(--text-muted); }
 
-/* Filter bar */
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
 .filter-bar {
   display: flex;
   align-items: center;
@@ -595,7 +600,7 @@ img { display: block; max-width: 100%; }
 .empty-state h2 { font-size: 1.15rem; font-weight: 500; }
 .empty-state p { font-size: 0.875rem; color: var(--text-muted); max-width: 320px; }
 
-/* Editor page */
+/* ── Editor page ─────────────────────────────────────────────────────────── */
 .main:has(.editor-page) { padding: 0; }
 
 .editor-page {
@@ -826,7 +831,7 @@ img { display: block; max-width: 100%; }
   border-bottom: 1px solid var(--border);
 }
 
-/* History layout */
+/* ── History layout ───────────────────────────────────────────────────────── */
 .history-layout {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -857,7 +862,7 @@ img { display: block; max-width: 100%; }
 .version-preview-content { max-height: 600px; overflow-y: auto; }
 .inline-form { display: inline-flex; align-items: center; gap: 0.5rem; }
 
-/* Share page */
+/* ── Share page ──────────────────────────────────────────────────────────── */
 .collab-list { display: flex; flex-direction: column; gap: 0.5rem; }
 .collab-row {
   display: flex;
@@ -955,7 +960,7 @@ img { display: block; max-width: 100%; }
   flex-wrap: wrap;
 }
 
-/* Color field */
+/* ── Color field ─────────────────────────────────────────────────────────── */
 .color-field-wrap { display: flex; align-items: center; gap: 0.75rem; }
 .color-preview {
   width: 32px; height: 32px;
@@ -965,13 +970,13 @@ img { display: block; max-width: 100%; }
 }
 .color-field-wrap input[type="color"] { flex: 1; }
 
-/* Profile */
+/* ── Profile ─────────────────────────────────────────────────────────────── */
 .profile-avatar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
 .profile-name { font-size: 1rem; font-weight: 500; }
 .profile-email { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.15rem; }
 .profile-since { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem; }
 
-/* Danger icon (delete confirm) */
+/* ── Danger icon (delete confirm) ────────────────────────────────────────── */
 .danger-icon {
   width: 64px; height: 64px;
   border-radius: 50%;
@@ -982,13 +987,13 @@ img { display: block; max-width: 100%; }
   margin: 0 auto 1.25rem;
 }
 
-/* Scrollbars */
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg-active); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-/* Responsive */
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .notes-grid { grid-template-columns: 1fr; }
   .workspace-grid { grid-template-columns: 1fr; }
@@ -1001,4 +1006,329 @@ img { display: block; max-width: 100%; }
 @media (max-width: 480px) {
   .auth-card { padding: 1.5rem; }
   .inline-fields { flex-direction: column; align-items: stretch; }
+}
+
+/* ── Feature 5: Collaborators button & panel ─────────────────────────────── */
+.editor-collabs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background var(--dur), border-color var(--dur), color var(--dur);
+  position: relative;
+}
+.editor-collabs-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text); }
+.editor-collabs-btn[aria-expanded="true"] { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.collabs-count {
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 99px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.collabs-panel {
+  position: absolute;
+  top: calc(var(--topbar-h, 48px) + 8px);
+  right: 1rem;
+  width: 260px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  overflow: hidden;
+}
+.collabs-panel-header {
+  padding: 0.7rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+.collabs-panel-list {
+  list-style: none;
+  padding: 0.5rem 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.collabs-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 1rem;
+  transition: background var(--dur);
+}
+.collabs-panel-item:hover { background: var(--bg-hover); }
+.collabs-panel-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.collabs-panel-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.collabs-panel-role { flex-shrink: 0; }
+.collabs-panel-footer {
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--border);
+}
+.collabs-manage-link { font-size: 0.8rem; color: var(--accent); }
+.collabs-manage-link:hover { text-decoration: underline; }
+
+/* ── Feature 7: Inline history panel ────────────────────────────────────── */
+.history-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 300px;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-strong);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.4);
+  animation: slideInRight 0.22s var(--ease);
+}
+@keyframes slideInRight { from { transform: translateX(100%); } }
+
+.history-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 299;
+}
+.history-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.history-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 0.25rem;
+  transition: color var(--dur);
+}
+.history-panel-close:hover { color: var(--text); }
+.history-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+.history-loading,
+.history-empty { font-size: 0.85rem; color: var(--text-muted); padding: 1rem 0.5rem; }
+.history-version-item {
+  padding: 0.85rem;
+  border-radius: var(--radius);
+  margin-bottom: 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  transition: border-color var(--dur);
+}
+.history-version-item:hover { border-color: var(--border-strong); }
+.history-version-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.history-version-time { font-size: 0.78rem; color: var(--text-2); }
+.history-current-tag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: var(--accent-dim);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.history-version-label {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-style: italic;
+  margin-bottom: 0.15rem;
+}
+.history-version-by { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+.history-restore-btn { font-size: 0.78rem; }
+
+/* ── Feature 6: Author span fading ─────────────────────────────────────── */
+/* Fresh edits — visible highlight */
+.author-span--fresh {
+  background: color-mix(in srgb, var(--author-color) 16%, transparent);
+  border-radius: 2px;
+  position: relative;
+  transition: background 3s ease;
+}
+/* Faded — nearly invisible, only hover shows attribution */
+.author-span--faded {
+  background: transparent;
+  border-radius: 2px;
+  position: relative;
+}
+/* Shared hover tooltip for both states */
+.author-span--fresh:hover::after,
+.author-span--faded:hover::after {
+  content: attr(data-author);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--author-color);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  font-family: var(--font-ui);
+  font-style: normal;
+  box-shadow: var(--shadow);
+}
+/* Keep old .author-span rule for backward compatibility with saved content */
+.author-span {
+  border-radius: 2px;
+  position: relative;
+}
+.author-span:hover::after {
+  content: attr(data-author);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--author-color);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  font-family: var(--font-ui);
+  font-style: normal;
+  box-shadow: var(--shadow);
+}
+
+/* ── Pending invites section (notes list) ───────────────────────────────── */
+.invites-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  margin-bottom: 1.75rem;
+  overflow: hidden;
+}
+.invites-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+}
+.invites-count {
+  margin-left: auto;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+}
+.invite-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.invite-card:last-child { border-bottom: none; }
+.invite-icon {
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.invite-icon--note      { background: var(--accent-dim); color: var(--accent); }
+.invite-icon--workspace { background: rgba(86,180,233,0.12); color: var(--blue); }
+.invite-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.invite-title { font-size: 0.875rem; color: var(--text); }
+.invite-meta  { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; }
+.invite-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+
+/* ── Pending invites in share pages ─────────────────────────────────────── */
+.pending-invites-list {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.pending-invites-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+.pending-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.pending-invite-row:last-child { border-bottom: none; }
+.pending-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Readonly title tooltip ──────────────────────────────────────────────── */
+.note-title-field[readonly] {
+  cursor: not-allowed;
+  opacity: 0.7;
 }

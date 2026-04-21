@@ -51,13 +51,30 @@
         <li style="padding:0.5rem 0;color:var(--text-muted);font-size:0.875rem">No members yet.</li>
         {% endfor %}
       </ul>
+
+      {% if pending_invites %}
+      <div class="pending-invites-list">
+        <p class="pending-invites-label">Pending invitations</p>
+        {% for invite in pending_invites %}
+        <div class="pending-invite-row">
+          <span class="avatar avatar--sm" style="background:var(--bg-active);color:var(--text-muted)">{{ invite.invited_user.get_initials }}</span>
+          <div class="collab-info">
+            <span class="collab-name">{{ invite.invited_user.display_name }}</span>
+            <span class="collab-email">{{ invite.invited_user.email }}</span>
+          </div>
+          <span class="role-badge role-badge--{{ invite.role }}">{{ invite.role }}</span>
+          <span class="pending-tag">Pending</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
   </div>
 
   <div class="card">
     <div class="card-header">
       <h2 class="card-title">Invite by email</h2>
-      <p class="card-sub">The person must already have a CollabNotes account.</p>
+      <p class="card-sub">They will receive an email invitation to accept or decline.</p>
     </div>
     <div class="card-body">
       <form method="post" action="{% url 'workspaces:share' workspace.pk %}" novalidate>
@@ -66,7 +83,7 @@
         <div class="inline-fields">
           {% include 'includes/form_field.html' with field=invite_form.email %}
           {% include 'includes/form_field.html' with field=invite_form.role %}
-          <button type="submit" class="btn-primary">Invite</button>
+          <button type="submit" class="btn-primary">Send invite</button>
         </div>
       </form>
     </div>
@@ -75,7 +92,7 @@
   <div class="card">
     <div class="card-header">
       <h2 class="card-title">Share via link</h2>
-      <p class="card-sub">Anyone with this link can access the workspace.</p>
+      <p class="card-sub">Anyone with this link gets instant access — no invite needed.</p>
     </div>
     <div class="card-body">
       <form method="post" action="{% url 'workspaces:share' workspace.pk %}" novalidate>
@@ -119,8 +136,8 @@
 
 {% block extra_scripts %}
 <script>
-function copyLink(elemId) {
-  const el = document.getElementById(elemId);
+function copyLink(id) {
+  const el = document.getElementById(id);
   if (!el) return;
   navigator.clipboard.writeText(el.textContent.trim())
     .then(() => { el.style.color = 'var(--green)'; setTimeout(() => el.style.color = '', 1500); })

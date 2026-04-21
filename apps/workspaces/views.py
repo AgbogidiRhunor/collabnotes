@@ -1,13 +1,15 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.core.mail import send_mail
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views import View
 
 from .forms import WorkspaceForm, WorkspaceShareForm, WorkspaceInviteForm
-from .models import Workspace, WorkspacePermission, WorkspaceShareLink
+from .models import Workspace, WorkspacePermission, WorkspaceInvite, WorkspaceShareLink
 
 User = get_user_model()
 
@@ -34,22 +36,19 @@ class WorkspaceDetailView(View):
     template_name = 'workspaces/detail.html'
 
     def _get_workspace_and_role(self, pk, user):
-        # Owner always has full access
+        from django.http import Http404
         try:
             ws = Workspace.objects.get(pk=pk, is_deleted=False)
         except Workspace.DoesNotExist:
-            from django.http import Http404
             raise Http404
 
         if ws.owner == user:
             return ws, 'owner'
 
-        # Check shared permission
         try:
             perm = WorkspacePermission.objects.get(workspace=ws, user=user)
             return ws, perm.role
         except WorkspacePermission.DoesNotExist:
-            from django.http import Http404
             raise Http404
 
     def get(self, request, pk):
@@ -88,11 +87,10 @@ class WorkspaceEditView(View):
     template_name = 'workspaces/form.html'
 
     def get(self, request, pk):
+        # Feature 4: only owner can rename
         workspace = get_object_or_404(Workspace, pk=pk, owner=request.user, is_deleted=False)
         form = WorkspaceForm(instance=workspace)
-        return render(request, self.template_name, {
-            'form': form, 'workspace': workspace, 'action': 'Edit'
-        })
+        return render(request, self.template_name, {'form': form, 'workspace': workspace, 'action': 'Edit'})
 
     def post(self, request, pk):
         workspace = get_object_or_404(Workspace, pk=pk, owner=request.user, is_deleted=False)
@@ -101,9 +99,7 @@ class WorkspaceEditView(View):
             form.save()
             messages.success(request, 'Workspace updated.')
             return redirect('workspaces:detail', pk=workspace.pk)
-        return render(request, self.template_name, {
-            'form': form, 'workspace': workspace, 'action': 'Edit'
-        })
+        return render(request, self.template_name, {'form': form, 'workspace': workspace, 'action': 'Edit'})
 
 
 @method_decorator(login_required, name='dispatch')
@@ -124,12 +120,14 @@ class WorkspaceShareView(View):
         workspace = get_object_or_404(Workspace, pk=pk, owner=request.user, is_deleted=False)
         links = workspace.share_links.filter(is_active=True).order_by('-created_at')
         members = workspace.permissions.select_related('user').order_by('created_at')
+        pending_invites = workspace.invites.filter(status='pending').select_related('invited_user')
         return render(request, self.template_name, {
             'workspace': workspace,
             'share_form': WorkspaceShareForm(),
             'invite_form': WorkspaceInviteForm(),
             'links': links,
             'members': members,
+            'pending_invites': pending_invites,
         })
 
     def post(self, request, pk):
@@ -158,12 +156,14 @@ class WorkspaceShareView(View):
                     if invited == request.user:
                         messages.error(request, 'You cannot invite yourself.')
                     else:
-                        WorkspacePermission.objects.update_or_create(
+                        invite = WorkspaceInvite.create(
                             workspace=workspace,
-                            user=invited,
-                            defaults={'role': role, 'granted_by': request.user},
+                            invited_by=request.user,
+                            invited_user=invited,
+                            role=role,
                         )
-                        messages.success(request, f'{email} added as {role}.')
+                        self._send_invite_email(request, workspace, invite, invited, role)
+                        messages.success(request, f'Invitation sent to {email}.')
                 except User.DoesNotExist:
                     messages.error(request, 'No account found with that email.')
             return redirect('workspaces:share', pk=pk)
@@ -190,6 +190,51 @@ class WorkspaceShareView(View):
             return redirect('workspaces:share', pk=pk)
 
         return redirect('workspaces:share', pk=pk)
+
+    def _send_invite_email(self, request, workspace, invite, invited_user, role):
+        accept_url = request.build_absolute_uri(f'/workspaces/invite/{invite.token}/accept/')
+        decline_url = request.build_absolute_uri(f'/workspaces/invite/{invite.token}/decline/')
+        html = render_to_string('emails/workspace_invite.html', {
+            'workspace': workspace,
+            'invited_by': request.user,
+            'invited_user': invited_user,
+            'role': role,
+            'accept_url': accept_url,
+            'decline_url': decline_url,
+        })
+        send_mail(
+            subject=f'{request.user.display_name} invited you to a workspace on CollabNotes',
+            message=f'You have been invited to "{workspace.name}". Accept: {accept_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[invited_user.email],
+            html_message=html,
+            fail_silently=True,
+        )
+
+
+@method_decorator(login_required, name='dispatch')
+class WorkspaceInviteRespondView(View):
+    def get(self, request, token, action):
+        try:
+            invite = WorkspaceInvite.objects.select_related('workspace', 'invited_by').get(
+                token=token,
+                invited_user=request.user,
+                status='pending',
+            )
+        except WorkspaceInvite.DoesNotExist:
+            messages.error(request, 'This invitation is invalid or has already been responded to.')
+            return redirect('workspaces:list')
+
+        if action == 'accept':
+            invite.accept()
+            messages.success(request, f'You now have access to "{invite.workspace.name}".')
+            return redirect('workspaces:detail', pk=invite.workspace.pk)
+        elif action == 'decline':
+            invite.decline()
+            messages.info(request, f'You declined the invitation to "{invite.workspace.name}".')
+            return redirect('workspaces:list')
+
+        return redirect('workspaces:list')
 
 
 @method_decorator(login_required, name='dispatch')

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>You've been invited — CollabNotes</title>
+  <style>
+    body { font-family: Inter, Arial, sans-serif; background: #f5f4f0; margin: 0; padding: 40px 20px; }
+    .wrap { max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; }
+    .header { background: #1a1a1e; padding: 28px 32px; }
+    .brand { color: #c8a97a; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+    .body { padding: 32px; }
+    h1 { font-size: 22px; color: #1a1a1e; margin: 0 0 12px; }
+    p { font-size: 15px; color: #5c5b57; line-height: 1.6; margin: 0 0 16px; }
+    .ws-name { font-weight: 600; color: #1a1a1e; }
+    .role-badge { display: inline-block; background: rgba(200,169,122,0.15); color: #c8a97a; padding: 2px 10px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+    .btn-row { display: flex; gap: 12px; margin: 24px 0; }
+    .btn-accept { display: inline-block; background: #c8a97a; color: #1a1a1e; font-weight: 600; font-size: 15px; padding: 12px 28px; border-radius: 8px; text-decoration: none; }
+    .btn-decline { display: inline-block; background: #f0efe8; color: #585753; font-size: 15px; padding: 12px 28px; border-radius: 8px; text-decoration: none; }
+    .footer { padding: 20px 32px; border-top: 1px solid #f0efe8; font-size: 12px; color: #a8a7a0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header"><div class="brand">CollabNotes</div></div>
+    <div class="body">
+      <h1>You've been invited to a workspace</h1>
+      <p>
+        <strong>{{ invited_by.display_name }}</strong> invited you to join the workspace
+        <span class="ws-name">"{{ workspace.name }}"</span>
+        as a <span class="role-badge">{{ role }}</span>.
+      </p>
+      {% if workspace.description %}
+      <p style="color:#a8a7a0;font-size:13px">{{ workspace.description }}</p>
+      {% endif %}
+      <p>Accept to start collaborating, or decline if you're not interested.</p>
+      <div class="btn-row">
+        <a href="{{ accept_url }}" class="btn-accept">Accept invitation</a>
+        <a href="{{ decline_url }}" class="btn-decline">Decline</a>
+      </div>
+      <p style="font-size:13px;color:#a8a7a0">If you weren't expecting this, you can safely ignore this email.</p>
+    </div>
+    <div class="footer">CollabNotes · You received this because {{ invited_by.display_name }} sent you an invite.</div>
+  </div>
+</body>
+</html>

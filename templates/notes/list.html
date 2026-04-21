@@ -12,6 +12,48 @@
     </div>
   </div>
 
+  {% if pending_note_invites or pending_workspace_invites %}
+  <div class="invites-section">
+    <div class="invites-section-header">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 17H2a3 3 0 000 6h20v-6z"/><path d="M22 11V3H10L2 11"/><path d="M6 17v-6"/></svg>
+      Pending invitations
+      <span class="invites-count">{{ pending_note_invites|length|add:pending_workspace_invites|length }}</span>
+    </div>
+
+    {% for invite in pending_note_invites %}
+    <div class="invite-card">
+      <div class="invite-icon invite-icon--note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div class="invite-info">
+        <span class="invite-title">{{ invite.invited_by.display_name }} invited you to <strong>"{{ invite.note.title }}"</strong></span>
+        <span class="invite-meta">as <span class="role-badge role-badge--{{ invite.role }}">{{ invite.role }}</span> · {{ invite.created_at|timesince }} ago</span>
+      </div>
+      <div class="invite-actions">
+        <a href="{% url 'notes:invite_respond' invite.token 'accept' %}" class="btn-primary btn-sm">Accept</a>
+        <a href="{% url 'notes:invite_respond' invite.token 'decline' %}" class="btn-ghost btn-sm">Decline</a>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% for invite in pending_workspace_invites %}
+    <div class="invite-card">
+      <div class="invite-icon invite-icon--workspace">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+      </div>
+      <div class="invite-info">
+        <span class="invite-title">{{ invite.invited_by.display_name }} invited you to workspace <strong>"{{ invite.workspace.name }}"</strong></span>
+        <span class="invite-meta">as <span class="role-badge role-badge--{{ invite.role }}">{{ invite.role }}</span> · {{ invite.created_at|timesince }} ago</span>
+      </div>
+      <div class="invite-actions">
+        <a href="{% url 'workspaces:invite_respond' invite.token 'accept' %}" class="btn-primary btn-sm">Accept</a>
+        <a href="{% url 'workspaces:invite_respond' invite.token 'decline' %}" class="btn-ghost btn-sm">Decline</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if notes_with_role %}
   <div class="notes-grid">
     {% for item in notes_with_role %}

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Note, NotePermission, NoteVersion, ShareLink
+from .models import Note, NotePermission, NoteInvite, NoteVersion, ShareLink
 
 
 @admin.register(Note)
@@ -15,6 +15,14 @@ class NotePermissionAdmin(admin.ModelAdmin):
     list_display = ('note', 'user', 'role', 'granted_by', 'created_at')
     list_filter = ('role',)
     search_fields = ('note__title', 'user__email')
+
+
+@admin.register(NoteInvite)
+class NoteInviteAdmin(admin.ModelAdmin):
+    list_display = ('note', 'invited_user', 'invited_by', 'role', 'status', 'created_at')
+    list_filter = ('status', 'role')
+    search_fields = ('note__title', 'invited_user__email')
+    readonly_fields = ('token',)
 
 
 @admin.register(NoteVersion)

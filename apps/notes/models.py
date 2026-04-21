@@ -88,6 +88,73 @@ class NotePermission(models.Model):
         return f'{self.user} — {self.role} on "{self.note}"'
 
 
+class NoteInvite(models.Model):
+    """Pending email invitation to a note. Requires accept/decline before access is granted."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        ACCEPTED = 'accepted', 'Accepted'
+        DECLINED = 'declined', 'Declined'
+
+    class Role(models.TextChoices):
+        EDITOR = 'editor', 'Editor'
+        VIEWER = 'viewer', 'Viewer'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='invites')
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sent_note_invites',
+    )
+    invited_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='received_note_invites',
+    )
+    role = models.CharField(max_length=10, choices=Role.choices, default=Role.VIEWER)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'notes_invite'
+        # One pending invite per (note, invited_user) pair
+        unique_together = [('note', 'invited_user')]
+        indexes = [models.Index(fields=['invited_user', 'status'])]
+
+    @classmethod
+    def create(cls, note, invited_by, invited_user, role):
+        # Replace any existing invite for this user on this note
+        cls.objects.filter(note=note, invited_user=invited_user).delete()
+        return cls.objects.create(
+            note=note,
+            invited_by=invited_by,
+            invited_user=invited_user,
+            role=role,
+            token=secrets.token_urlsafe(32),
+        )
+
+    def accept(self):
+        NotePermission.objects.update_or_create(
+            note=self.note,
+            user=self.invited_user,
+            defaults={'role': self.role, 'granted_by': self.invited_by},
+        )
+        self.status = self.Status.ACCEPTED
+        self.responded_at = timezone.now()
+        self.save(update_fields=['status', 'responded_at'])
+
+    def decline(self):
+        self.status = self.Status.DECLINED
+        self.responded_at = timezone.now()
+        self.save(update_fields=['status', 'responded_at'])
+
+    def __str__(self):
+        return f'Invite: {self.invited_user} to "{self.note}" as {self.role}'
+
+
 class NoteVersion(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     note = models.ForeignKey(Note, on_delete=models.CASCADE, related_name='versions')
@@ -154,7 +221,6 @@ class ShareLink(models.Model):
         return True
 
     def accept(self, user):
-        """Grant user access. Never downgrades an existing role."""
         role_rank = {'owner': 3, 'editor': 2, 'viewer': 1}
         perm, created = NotePermission.objects.get_or_create(
             note=self.note,
