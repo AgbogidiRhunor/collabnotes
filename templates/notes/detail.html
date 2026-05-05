@@ -5,17 +5,15 @@
 {% block nav_notes %}active{% endblock %}
 
 {% block extra_head %}
-<meta name="can-edit"      content="{{ can_edit|yesno:'true,false' }}" />
-<meta name="can-rename"    content="{{ can_rename|yesno:'true,false' }}" />
-<meta name="can-manage"    content="{{ can_manage|yesno:'true,false' }}" />
-<meta name="current-user"  content="{{ request.user.display_name }}" />
-<meta name="note-id"       content="{{ note.pk }}" />
+<meta name="can-edit"     content="{{ can_edit|yesno:'true,false' }}" />
+<meta name="can-rename"   content="{{ can_rename|yesno:'true,false' }}" />
+<meta name="can-manage"   content="{{ can_manage|yesno:'true,false' }}" />
+<meta name="current-user" content="{{ request.user.display_name }}" />
 {% endblock %}
 
 {% block content %}
 <div class="editor-page">
 
-  <!-- Top bar -->
   <div class="editor-topbar">
     <div class="editor-topbar-left">
       <a href="{% url 'notes:list' %}" class="btn-ghost btn-sm">← Notes</a>
@@ -29,15 +27,15 @@
     </div>
 
     <div class="editor-topbar-right">
-
-      <!-- Feature 5: Collaborators icon/panel trigger -->
       <button type="button" class="editor-collabs-btn" id="collabs-btn" title="Collaborators" aria-expanded="false">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-        <span class="collabs-count" id="collabs-count">{{ collaborators|length }}</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+          <path d="M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+        <span class="collabs-count">{{ collaborators|length }}</span>
       </button>
-
-      <!-- History panel trigger (replaces separate page) -->
-      <button type="button" class="btn-ghost btn-sm" id="history-btn" title="Version history">History</button>
 
       {% if can_manage %}
         <a href="{% url 'notes:share' note.pk %}" class="btn-ghost btn-sm">Share</a>
@@ -49,8 +47,8 @@
     </div>
   </div>
 
-  <!-- Feature 5: Collaborators dropdown panel -->
-  <div class="collabs-panel" id="collabs-panel" hidden>
+  <!-- Collaborators panel -->
+  <div class="collabs-panel" id="collabs-panel">
     <div class="collabs-panel-header">People in this note</div>
     <ul class="collabs-panel-list">
       {% for collab in collaborators %}
@@ -72,18 +70,6 @@
     </div>
     {% endif %}
   </div>
-
-  <!-- Feature 7: Inline history panel (slide-in from right) -->
-  <div class="history-panel" id="history-panel" hidden>
-    <div class="history-panel-header">
-      <span>Version History</span>
-      <button type="button" class="history-panel-close" id="history-close">×</button>
-    </div>
-    <div class="history-panel-body" id="history-list">
-      <p class="history-loading">Loading…</p>
-    </div>
-  </div>
-  <div class="history-overlay" id="history-overlay" hidden></div>
 
   {% if can_edit %}
   <div class="format-toolbar" id="format-toolbar" role="toolbar" aria-label="Text formatting">
@@ -136,7 +122,6 @@
     {% csrf_token %}
     <div class="editor-body">
 
-      <!-- Feature 1 & 4: title editable only by owner -->
       <input
         type="text"
         name="title"
@@ -173,9 +158,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-  window.NOTE_VERSIONS_URL = "{% url 'notes:versions' note.pk %}";
-  window.NOTE_RESTORE_BASE = "{% url 'notes:detail' note.pk %}".replace(/\/$/, '') + '/history/';
-</script>
 <script src="{% static 'js/editor.js' %}"></script>
 {% endblock %}
