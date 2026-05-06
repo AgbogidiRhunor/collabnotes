@@ -608,6 +608,7 @@ img { display: block; max-width: 100%; }
   flex-direction: column;
   height: calc(100dvh - var(--nav-h));
   overflow: hidden;
+  position: relative; /* needed for collabs-panel absolute positioning */
 }
 
 .editor-topbar {
@@ -1008,66 +1009,79 @@ img { display: block; max-width: 100%; }
   .inline-fields { flex-direction: column; align-items: stretch; }
 }
 
-/* ── Feature 5: Collaborators button & panel ─────────────────────────────── */
+/* ── Collaborators button & panel ────────────────────────────────────────── */
 .editor-collabs-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.65rem;
-  border: 1px solid var(--border);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-2);
-  font-size: 0.8rem;
   cursor: pointer;
-  transition: background var(--dur), border-color var(--dur), color var(--dur);
-  position: relative;
+  transition: background var(--dur), color var(--dur);
+  flex-shrink: 0;
 }
-.editor-collabs-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text); }
-.editor-collabs-btn[aria-expanded="true"] { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.editor-collabs-btn:hover { background: var(--bg-hover); color: var(--text); }
+.editor-collabs-btn[aria-expanded="true"] { background: var(--accent-dim); color: var(--accent); }
+
 .collabs-count {
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-size: 0.68rem;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--accent);
+  color: #111113;
+  font-size: 0.58rem;
   font-weight: 700;
-  padding: 0 5px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
   border-radius: 99px;
-  min-width: 16px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
 }
 
 .collabs-panel {
-  position: absolute;
-  top: calc(var(--topbar-h, 48px) + 8px);
+  position: fixed;
+  top: calc(var(--nav-h) + 48px + 8px);
   right: 1rem;
-  width: 260px;
+  width: 240px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   z-index: 200;
   overflow: hidden;
+  display: none;
 }
+.collabs-panel.is-open { display: block; }
+
 .collabs-panel-header {
-  padding: 0.7rem 1rem;
-  font-size: 0.78rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   border-bottom: 1px solid var(--border);
 }
 .collabs-panel-list {
   list-style: none;
-  padding: 0.5rem 0;
-  max-height: 260px;
+  padding: 0.35rem 0;
+  max-height: 240px;
   overflow-y: auto;
 }
 .collabs-panel-item {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.5rem 1rem;
+  gap: 0.6rem;
+  padding: 0.45rem 0.9rem;
   transition: background var(--dur);
 }
 .collabs-panel-item:hover { background: var(--bg-hover); }
@@ -1080,7 +1094,7 @@ img { display: block; max-width: 100%; }
   gap: 0.4rem;
 }
 .collabs-panel-name {
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -1088,157 +1102,35 @@ img { display: block; max-width: 100%; }
 }
 .collabs-panel-role { flex-shrink: 0; }
 .collabs-panel-footer {
-  padding: 0.6rem 1rem;
+  padding: 0.55rem 0.9rem;
   border-top: 1px solid var(--border);
 }
-.collabs-manage-link { font-size: 0.8rem; color: var(--accent); }
+.collabs-manage-link { font-size: 0.78rem; color: var(--accent); }
 .collabs-manage-link:hover { text-decoration: underline; }
 
-/* ── Feature 7: Inline history panel ────────────────────────────────────── */
-.history-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 300px;
-  background: var(--bg-surface);
-  border-left: 1px solid var(--border-strong);
-  z-index: 300;
-  display: flex;
-  flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0,0,0,0.4);
-  animation: slideInRight 0.22s var(--ease);
-}
-@keyframes slideInRight { from { transform: translateX(100%); } }
-
-.history-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.4);
-  z-index: 299;
-}
-.history-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.1rem;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.9rem;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-.history-panel-close {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 1.3rem;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0 0.25rem;
-  transition: color var(--dur);
-}
-.history-panel-close:hover { color: var(--text); }
-.history-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.5rem;
-}
-.history-loading,
-.history-empty { font-size: 0.85rem; color: var(--text-muted); padding: 1rem 0.5rem; }
-.history-version-item {
-  padding: 0.85rem;
-  border-radius: var(--radius);
-  margin-bottom: 0.4rem;
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  transition: border-color var(--dur);
-}
-.history-version-item:hover { border-color: var(--border-strong); }
-.history-version-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-.history-version-time { font-size: 0.78rem; color: var(--text-2); }
-.history-current-tag {
-  font-size: 0.68rem;
-  font-weight: 600;
-  background: var(--accent-dim);
-  color: var(--accent);
-  padding: 1px 6px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.history-version-label {
-  font-size: 0.82rem;
-  color: var(--text);
-  font-style: italic;
-  margin-bottom: 0.15rem;
-}
-.history-version-by { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem; }
-.history-restore-btn { font-size: 0.78rem; }
-
-/* ── Feature 6: Author span fading ─────────────────────────────────────── */
-/* Fresh edits — visible highlight */
-.author-span--fresh {
-  background: color-mix(in srgb, var(--author-color) 16%, transparent);
-  border-radius: 2px;
-  position: relative;
-  transition: background 3s ease;
-}
-/* Faded — nearly invisible, only hover shows attribution */
-.author-span--faded {
-  background: transparent;
-  border-radius: 2px;
-  position: relative;
-}
-/* Shared hover tooltip for both states */
-.author-span--fresh:hover::after,
-.author-span--faded:hover::after {
-  content: attr(data-author);
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  color: var(--author-color);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 10;
-  font-family: var(--font-ui);
-  font-style: normal;
-  box-shadow: var(--shadow);
-}
-/* Keep old .author-span rule for backward compatibility with saved content */
+/* ── Author highlights & tooltip ─────────────────────────────────────────── */
+/* Base — all author spans */
 .author-span {
   border-radius: 2px;
   position: relative;
+  cursor: text;
 }
-.author-span:hover::after {
-  content: attr(data-author);
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  color: var(--author-color);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 10;
-  font-family: var(--font-ui);
-  font-style: normal;
-  box-shadow: var(--shadow);
+/* Fresh edit — soft colour wash */
+.author-span--fresh {
+  background: color-mix(in srgb, var(--author-color, #c8a97a) 18%, transparent);
 }
+/* Fallback for browsers without color-mix */
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .author-span--fresh { background: rgba(200, 169, 122, 0.15); }
+}
+/* Faded — transparent background, attribution only on hover */
+.author-span--faded {
+  background: transparent;
+}
+
+/* Tooltip shown on hover is handled by JS (see editor.js) — avoids
+   clipping, positioning and color-variable issues with CSS ::after */
+.author-span:hover { outline: 1px solid color-mix(in srgb, var(--author-color, #c8a97a) 40%, transparent); }
 
 /* ── Pending invites section (notes list) ───────────────────────────────── */
 .invites-section {

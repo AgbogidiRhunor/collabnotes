@@ -1,26 +1,27 @@
 (function () {
   'use strict';
 
-  /* ── DOM refs ─────────────────────────────────────────────────────────── */
+  /* ── DOM ──────────────────────────────────────────────────────────────── */
   const editorEl     = document.getElementById('note-editor');
   const titleEl      = document.getElementById('note-title');
   const contentField = document.getElementById('note-content-field');
   const noteForm     = document.getElementById('note-form');
   const saveStatus   = document.getElementById('save-status');
   const saveBtn      = document.getElementById('save-btn');
+  const collabsBtn   = document.getElementById('collabs-btn');
+  const collabsPanel = document.getElementById('collabs-panel');
 
   if (!editorEl || !noteForm) return;
 
-  /* ── Config from meta tags ────────────────────────────────────────────── */
+  /* ── Meta ─────────────────────────────────────────────────────────────── */
   const CAN_EDIT     = editorEl.getAttribute('contenteditable') === 'true';
   const CAN_RENAME   = (document.querySelector('meta[name="can-rename"]') || {}).content === 'true';
   const CURRENT_USER = (document.querySelector('meta[name="current-user"]') || {}).content || '';
-  const NOTE_ID      = (document.querySelector('meta[name="note-id"]') || {}).content || '';
 
   let isDirty  = false;
   let isSaving = false;
 
-  /* ── Utility ──────────────────────────────────────────────────────────── */
+  /* ── Helpers ──────────────────────────────────────────────────────────── */
   function debounce(fn, ms) {
     let t;
     return function () { clearTimeout(t); t = setTimeout(fn, ms); };
@@ -37,24 +38,6 @@
     isDirty = true;
     setStatus('Unsaved changes', 'saving');
     if (saveBtn) saveBtn.classList.add('btn-primary--pulse');
-  }
-
-  function getCsrf() {
-    for (const part of document.cookie.split(';')) {
-      const eq = part.indexOf('=');
-      if (eq < 0) continue;
-      if (part.slice(0, eq).trim() === 'csrftoken') {
-        return '<input type="hidden" name="csrfmiddlewaretoken" value="' +
-               decodeURIComponent(part.slice(eq + 1).trim()) + '">';
-      }
-    }
-    return '';
-  }
-
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   /* ── Save ─────────────────────────────────────────────────────────────── */
@@ -116,19 +99,66 @@
     });
   }
 
-  setInterval(fadeOldAuthorSpans, 30000);
-  fadeOldAuthorSpans();
+  /* ── Author tooltip (JS-driven, avoids CSS ::after clipping issues) ──── */
+  const authorTooltip = document.createElement('div');
+  authorTooltip.id = 'author-tooltip';
+  authorTooltip.style.cssText = [
+    'position:fixed',
+    'display:none',
+    'padding:3px 10px',
+    'background:var(--bg-elevated,#1e1e23)',
+    'border:1px solid var(--border-strong,rgba(255,255,255,0.15))',
+    'border-radius:5px',
+    'font-size:0.72rem',
+    'font-weight:600',
+    'font-family:Inter,system-ui,sans-serif',
+    'white-space:nowrap',
+    'pointer-events:none',
+    'z-index:500',
+    'box-shadow:0 4px 12px rgba(0,0,0,0.35)',
+    'transition:opacity 0.1s',
+  ].join(';');
+  document.body.appendChild(authorTooltip);
 
-  const debouncedWrap = debounce(wrapNewTextWithAuthor, 1500);
+  editorEl.addEventListener('mouseover', function (e) {
+    const span = e.target.closest('[data-author]');
+    if (!span) { authorTooltip.style.display = 'none'; return; }
+    const author = span.dataset.author;
+    const color  = getComputedStyle(span).getPropertyValue('--author-color').trim() || '#c8a97a';
+    authorTooltip.textContent = author;
+    authorTooltip.style.color = color;
+    authorTooltip.style.display = 'block';
+  });
+
+  editorEl.addEventListener('mouseout', function (e) {
+    if (!e.relatedTarget || !e.relatedTarget.closest('[data-author]')) {
+      authorTooltip.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (authorTooltip.style.display === 'none') return;
+    const pad = 12;
+    let x = e.clientX + pad;
+    let y = e.clientY - 30;
+    /* Keep inside viewport */
+    const tw = authorTooltip.offsetWidth;
+    const th = authorTooltip.offsetHeight;
+    if (x + tw > window.innerWidth  - 8) x = e.clientX - tw - pad;
+    if (y < 8) y = e.clientY + pad;
+    if (y + th > window.innerHeight - 8) y = window.innerHeight - th - 8;
+    authorTooltip.style.left = x + 'px';
+    authorTooltip.style.top  = y + 'px';
+  });
+
 
   /* ── Editor events ────────────────────────────────────────────────────── */
   if (CAN_EDIT) {
     editorEl.addEventListener('input', function () { markDirty(); debouncedWrap(); });
+
     if (titleEl && CAN_RENAME) titleEl.addEventListener('input', markDirty);
 
-    if (saveBtn) {
-      saveBtn.addEventListener('click', function (e) { e.preventDefault(); save(); });
-    }
+    if (saveBtn) saveBtn.addEventListener('click', function (e) { e.preventDefault(); save(); });
 
     document.addEventListener('keydown', function (e) {
       const mod = e.ctrlKey || e.metaKey;
@@ -161,99 +191,21 @@
         if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
       });
   }
+
   editorEl.addEventListener('keyup', syncToolbar);
   editorEl.addEventListener('mouseup', syncToolbar);
 
-  /* ── History panel ────────────────────────────────────────────────────── */
-  // Declare ALL history vars before collaborators panel so there are no
-  // forward-reference issues.
-
-  const historyBtn     = document.getElementById('history-btn');
-  const historyPanel   = document.getElementById('history-panel');
-  const historyOverlay = document.getElementById('history-overlay');
-  const historyClose   = document.getElementById('history-close');
-  const historyList    = document.getElementById('history-list');
-
-  function openHistory() {
-    if (!historyPanel) return;
-    historyPanel.classList.add('is-open');
-    if (historyOverlay) historyOverlay.style.display = 'block';
-    loadVersions();
-  }
-
-  function closeHistory() {
-    if (historyPanel) historyPanel.classList.remove('is-open');
-    if (historyOverlay) historyOverlay.style.display = 'none';
-  }
-
-  function loadVersions() {
-    const url = window.NOTE_VERSIONS_URL;
-    if (!url || !historyList) return;
-    historyList.innerHTML = '<p class="history-loading">Loading…</p>';
-
-    fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function (data) {
-        if (!data.versions || data.versions.length === 0) {
-          historyList.innerHTML = '<p class="history-empty">No saved versions yet.</p>';
-          return;
-        }
-        const canEdit = (document.querySelector('meta[name="can-edit"]') || {}).content === 'true';
-        historyList.innerHTML = data.versions.map(function (v, i) {
-          const label      = v.label ? escHtml(v.label) : (i === 0 ? 'Current version' : '');
-          const by         = escHtml(v['saved_by__display_name'] || 'Unknown');
-          const restoreUrl = '/notes/' + NOTE_ID + '/history/' + v.id + '/restore/';
-          return [
-            '<div class="history-version-item">',
-              '<div class="history-version-meta">',
-                '<span class="history-version-time">' + escHtml(v.time_ago) + '</span>',
-                i === 0 ? '<span class="history-current-tag">Current</span>' : '',
-              '</div>',
-              label ? '<p class="history-version-label">' + label + '</p>' : '',
-              '<p class="history-version-by">Saved by ' + by + '</p>',
-              i > 0 && canEdit
-                ? '<form method="post" action="' + restoreUrl + '">' +
-                    getCsrf() +
-                    '<button type="submit" class="btn-ghost btn-sm history-restore-btn">Restore</button>' +
-                  '</form>'
-                : '',
-            '</div>'
-          ].join('');
-        }).join('');
-      })
-      .catch(function (err) {
-        historyList.innerHTML = '<p class="history-empty">Could not load versions.<br><small>' + escHtml(String(err)) + '</small></p>';
-      });
-  }
-
-  if (historyBtn)     historyBtn.addEventListener('click', openHistory);
-  if (historyClose)   historyClose.addEventListener('click', closeHistory);
-  if (historyOverlay) historyOverlay.addEventListener('click', closeHistory);
-
   /* ── Collaborators panel ──────────────────────────────────────────────── */
-  // Declared AFTER history so closeHistory() is available.
-
-  const collabsBtn   = document.getElementById('collabs-btn');
-  const collabsPanel = document.getElementById('collabs-panel');
-
-  function closeCollabs() {
-    if (!collabsPanel) return;
-    collabsPanel.classList.remove('is-open');
-    if (collabsBtn) collabsBtn.setAttribute('aria-expanded', 'false');
-  }
-
   if (collabsBtn && collabsPanel) {
     collabsBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      if (collabsPanel.classList.contains('is-open')) {
-        closeCollabs();
+      const isOpen = collabsPanel.classList.contains('is-open');
+      if (isOpen) {
+        collabsPanel.classList.remove('is-open');
+        collabsBtn.setAttribute('aria-expanded', 'false');
       } else {
         collabsPanel.classList.add('is-open');
         collabsBtn.setAttribute('aria-expanded', 'true');
-        closeHistory();
       }
     });
 
@@ -261,7 +213,8 @@
       if (collabsPanel.classList.contains('is-open') &&
           !collabsPanel.contains(e.target) &&
           !collabsBtn.contains(e.target)) {
-        closeCollabs();
+        collabsPanel.classList.remove('is-open');
+        collabsBtn.setAttribute('aria-expanded', 'false');
       }
     });
 
