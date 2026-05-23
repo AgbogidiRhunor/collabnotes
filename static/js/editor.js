@@ -99,6 +99,19 @@
     });
   }
 
+  // On load: re-apply the correct color to every existing author span.
+  // Saved HTML keeps data-author but --author-color may be missing after reload.
+  // This ensures every collaborator's text shows their distinct colour immediately.
+  editorEl.querySelectorAll('[data-author]').forEach(function (span) {
+    const author = span.dataset.author;
+    if (!author) return;
+    span.style.setProperty('--author-color', colorForName(author));
+    // Also ensure fresh spans without a class get one
+    if (!span.classList.contains('author-span--fresh') && !span.classList.contains('author-span--faded')) {
+      span.classList.add('author-span', 'author-span--fresh');
+    }
+  });
+
   /* ── Author tooltip (JS-driven, avoids CSS ::after clipping issues) ──── */
   const authorTooltip = document.createElement('div');
   authorTooltip.id = 'author-tooltip';

@@ -1128,9 +1128,7 @@ img { display: block; max-width: 100%; }
   background: transparent;
 }
 
-/* Tooltip shown on hover is handled by JS (see editor.js) — avoids
-   clipping, positioning and color-variable issues with CSS ::after */
-.author-span:hover { outline: 1px solid color-mix(in srgb, var(--author-color, #c8a97a) 40%, transparent); }
+/* Tooltip on hover is handled by JS (editor.js) — follows the cursor */
 
 /* ── Pending invites section (notes list) ───────────────────────────────── */
 .invites-section {
