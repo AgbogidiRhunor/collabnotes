@@ -56,114 +56,138 @@
     noteForm.submit();
   }
 
-  /* ── Author highlighting ──────────────────────────────────────────────── */
+  /* ── Author colours ───────────────────────────────────────────────────── */
+  // 4 distinct soft colours — one per collaborator, deterministic by name
   const AUTHOR_PALETTE = ['#c8a97a', '#6fcf97', '#56b4e9', '#bb8fce'];
-  const FADE_AFTER_MS  = 5 * 60 * 1000;
+  const FADE_AFTER_MS  = 5 * 60 * 1000; // 5 minutes
 
   function colorForName(name) {
-    let h = 0;
-    for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
     return AUTHOR_PALETTE[Math.abs(h) % AUTHOR_PALETTE.length];
   }
 
+  /* ── Author highlighting ──────────────────────────────────────────────── */
   function wrapNewTextWithAuthor() {
     if (!CURRENT_USER) return;
-    const color  = colorForName(CURRENT_USER);
-    const now    = Date.now();
-    const walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT);
-    const toWrap = [];
-    let node;
+    var color  = colorForName(CURRENT_USER);
+    var now    = Date.now();
+    var walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT);
+    var toWrap = [];
+    var node;
     while ((node = walker.nextNode())) {
       if (node.parentElement.closest('[data-author]')) continue;
       if (!node.textContent.trim()) continue;
       toWrap.push(node);
     }
     toWrap.forEach(function (tn) {
-      const span = document.createElement('span');
+      var span = document.createElement('span');
       span.dataset.author   = CURRENT_USER;
       span.dataset.editTime = now;
-      span.style.setProperty('--author-color', color);
-      span.className = 'author-span author-span--fresh';
+      span.dataset.color    = color; // store as data attr — readable without CSS vars
+      span.className        = 'author-span author-span--fresh';
+      span.style.background = hexToRgba(color, 0.18);
       tn.parentNode.insertBefore(span, tn);
       span.appendChild(tn);
     });
   }
 
   function fadeOldAuthorSpans() {
-    const now = Date.now();
+    var now = Date.now();
     editorEl.querySelectorAll('.author-span[data-edit-time]').forEach(function (span) {
       if (now - parseInt(span.dataset.editTime || '0', 10) > FADE_AFTER_MS) {
         span.classList.remove('author-span--fresh');
         span.classList.add('author-span--faded');
+        span.style.background = 'transparent';
       }
     });
   }
 
-  // On load: re-apply the correct color to every existing author span.
-  // Saved HTML keeps data-author but --author-color may be missing after reload.
-  // This ensures every collaborator's text shows their distinct colour immediately.
+  // Convert hex colour to rgba string — avoids color-mix() browser issues
+  function hexToRgba(hex, alpha) {
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  // On page load: re-apply colours to all existing author spans in saved content
   editorEl.querySelectorAll('[data-author]').forEach(function (span) {
-    const author = span.dataset.author;
+    var author = span.dataset.author;
     if (!author) return;
-    span.style.setProperty('--author-color', colorForName(author));
-    // Also ensure fresh spans without a class get one
-    if (!span.classList.contains('author-span--fresh') && !span.classList.contains('author-span--faded')) {
-      span.classList.add('author-span', 'author-span--fresh');
+    var color = colorForName(author);
+    span.dataset.color = color;
+    // Only apply background if fresh (not already faded)
+    if (span.classList.contains('author-span--faded')) {
+      span.style.background = 'transparent';
+    } else {
+      span.style.background = hexToRgba(color, 0.18);
+      if (!span.classList.contains('author-span--fresh')) {
+        span.classList.add('author-span', 'author-span--fresh');
+      }
     }
   });
 
-  /* ── Author tooltip (JS-driven, avoids CSS ::after clipping issues) ──── */
-  const authorTooltip = document.createElement('div');
-  authorTooltip.id = 'author-tooltip';
-  authorTooltip.style.cssText = [
+  // Run fade check immediately and every 30s
+  fadeOldAuthorSpans();
+  setInterval(fadeOldAuthorSpans, 30000);
+
+  /* ── Tooltip (JS-driven, follows cursor, single instance) ────────────── */
+  var tooltip = document.createElement('div');
+  tooltip.style.cssText = [
     'position:fixed',
     'display:none',
     'padding:3px 10px',
-    'background:var(--bg-elevated,#1e1e23)',
-    'border:1px solid var(--border-strong,rgba(255,255,255,0.15))',
     'border-radius:5px',
     'font-size:0.72rem',
     'font-weight:600',
     'font-family:Inter,system-ui,sans-serif',
+    'font-style:normal',
     'white-space:nowrap',
     'pointer-events:none',
-    'z-index:500',
-    'box-shadow:0 4px 12px rgba(0,0,0,0.35)',
-    'transition:opacity 0.1s',
+    'z-index:9999',
+    'box-shadow:0 4px 12px rgba(0,0,0,0.4)',
+    'border:1px solid rgba(255,255,255,0.12)',
+    'background:#1e1e23',
+    'color:#c8a97a',
   ].join(';');
-  document.body.appendChild(authorTooltip);
+  document.body.appendChild(tooltip);
 
   editorEl.addEventListener('mouseover', function (e) {
-    const span = e.target.closest('[data-author]');
-    if (!span) { authorTooltip.style.display = 'none'; return; }
-    const author = span.dataset.author;
-    const color  = getComputedStyle(span).getPropertyValue('--author-color').trim() || '#c8a97a';
-    authorTooltip.textContent = author;
-    authorTooltip.style.color = color;
-    authorTooltip.style.display = 'block';
+    var span = e.target.closest('[data-author]');
+    if (!span || !span.dataset.author) {
+      tooltip.style.display = 'none';
+      return;
+    }
+    var color = span.dataset.color || colorForName(span.dataset.author);
+    tooltip.textContent   = span.dataset.author;
+    tooltip.style.color   = color;
+    tooltip.style.display = 'block';
   });
 
   editorEl.addEventListener('mouseout', function (e) {
-    if (!e.relatedTarget || !e.relatedTarget.closest('[data-author]')) {
-      authorTooltip.style.display = 'none';
+    // Only hide if we're leaving the editor entirely or moving to a non-author element
+    var to = e.relatedTarget;
+    if (!to || !to.closest || !to.closest('[data-author]')) {
+      tooltip.style.display = 'none';
     }
   });
 
   document.addEventListener('mousemove', function (e) {
-    if (authorTooltip.style.display === 'none') return;
-    const pad = 12;
-    let x = e.clientX + pad;
-    let y = e.clientY - 30;
-    /* Keep inside viewport */
-    const tw = authorTooltip.offsetWidth;
-    const th = authorTooltip.offsetHeight;
-    if (x + tw > window.innerWidth  - 8) x = e.clientX - tw - pad;
-    if (y < 8) y = e.clientY + pad;
-    if (y + th > window.innerHeight - 8) y = window.innerHeight - th - 8;
-    authorTooltip.style.left = x + 'px';
-    authorTooltip.style.top  = y + 'px';
+    if (tooltip.style.display === 'none') return;
+    var pad = 14;
+    var x   = e.clientX + pad;
+    var y   = e.clientY - 34;
+    // Clamp inside viewport
+    if (x + tooltip.offsetWidth  > window.innerWidth  - 8) x = e.clientX - tooltip.offsetWidth  - pad;
+    if (y < 8)                                              y = e.clientY + pad;
+    if (y + tooltip.offsetHeight > window.innerHeight - 8) y = window.innerHeight - tooltip.offsetHeight - 8;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top  = y + 'px';
   });
 
+  /* ── Debounced wrap — defined here so it's available to editor input ── */
+  var debouncedWrap = debounce(wrapNewTextWithAuthor, 1500);
 
   /* ── Editor events ────────────────────────────────────────────────────── */
   if (CAN_EDIT) {
@@ -174,7 +198,7 @@
     if (saveBtn) saveBtn.addEventListener('click', function (e) { e.preventDefault(); save(); });
 
     document.addEventListener('keydown', function (e) {
-      const mod = e.ctrlKey || e.metaKey;
+      var mod = e.ctrlKey || e.metaKey;
       if (mod && e.key === 's') { e.preventDefault(); save(); return; }
       if (mod && e.key === 'b') { e.preventDefault(); document.execCommand('bold'); }
       if (mod && e.key === 'i') { e.preventDefault(); document.execCommand('italic'); }
@@ -200,7 +224,7 @@
   function syncToolbar() {
     ['bold','italic','underline','strikeThrough','insertUnorderedList','insertOrderedList']
       .forEach(function (cmd) {
-        const btn = document.querySelector('.fmt-btn[data-cmd="' + cmd + '"]');
+        var btn = document.querySelector('.fmt-btn[data-cmd="' + cmd + '"]');
         if (btn) btn.classList.toggle('active', document.queryCommandState(cmd));
       });
   }
@@ -212,8 +236,7 @@
   if (collabsBtn && collabsPanel) {
     collabsBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      const isOpen = collabsPanel.classList.contains('is-open');
-      if (isOpen) {
+      if (collabsPanel.classList.contains('is-open')) {
         collabsPanel.classList.remove('is-open');
         collabsBtn.setAttribute('aria-expanded', 'false');
       } else {

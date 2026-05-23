@@ -1109,26 +1109,18 @@ img { display: block; max-width: 100%; }
 .collabs-manage-link:hover { text-decoration: underline; }
 
 /* ── Author highlights & tooltip ─────────────────────────────────────────── */
-/* Base — all author spans */
 .author-span {
   border-radius: 2px;
-  position: relative;
   cursor: text;
+  /* background is set directly by JS via hexToRgba — no CSS variables needed */
 }
-/* Fresh edit — soft colour wash */
 .author-span--fresh {
-  background: color-mix(in srgb, var(--author-color, #c8a97a) 18%, transparent);
+  /* background applied inline by JS */
 }
-/* Fallback for browsers without color-mix */
-@supports not (background: color-mix(in srgb, red 50%, blue)) {
-  .author-span--fresh { background: rgba(200, 169, 122, 0.15); }
-}
-/* Faded — transparent background, attribution only on hover */
 .author-span--faded {
-  background: transparent;
+  background: transparent !important;
 }
-
-/* Tooltip on hover is handled by JS (editor.js) — follows the cursor */
+/* Tooltip on hover is JS-driven (editor.js) — follows the cursor, single instance */
 
 /* ── Pending invites section (notes list) ───────────────────────────────── */
 .invites-section {
