@@ -802,25 +802,6 @@ img { display: block; max-width: 100%; }
   position: relative;
   cursor: default;
 }
-.author-span:hover::after {
-  content: attr(data-author);
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  color: var(--author-color);
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 10;
-  font-family: var(--font-ui);
-  font-style: normal;
-  box-shadow: var(--shadow);
-}
 
 /* Viewer preview — for history page */
 .version-preview-title {
@@ -1108,19 +1089,9 @@ img { display: block; max-width: 100%; }
 .collabs-manage-link { font-size: 0.78rem; color: var(--accent); }
 .collabs-manage-link:hover { text-decoration: underline; }
 
-/* ── Author highlights & tooltip ─────────────────────────────────────────── */
-.author-span {
-  border-radius: 2px;
-  cursor: text;
-  /* background is set directly by JS via hexToRgba — no CSS variables needed */
-}
-.author-span--fresh {
-  /* background applied inline by JS */
-}
-.author-span--faded {
-  background: transparent !important;
-}
-/* Tooltip on hover is JS-driven (editor.js) — follows the cursor, single instance */
+/* ── Author spans — no background, tooltip only via JS ───────────────────── */
+.author-span { cursor: text; }
+/* Tooltip on hover is JS-driven (editor.js) — follows the cursor */
 
 /* ── Pending invites section (notes list) ───────────────────────────────── */
 .invites-section {
