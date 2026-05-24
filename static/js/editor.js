@@ -63,32 +63,43 @@
     return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
   }
 
-  /* ── Author wrapping (edit mode only) ────────────────────────────────── */
-  function wrapNewTextWithAuthor() {
+  /* ── Author wrapping — only wraps text typed by CURRENT_USER ─────────── */
+  // Strategy: on input, find the text node at the current cursor and wrap
+  // only that node if it's not already attributed. This avoids re-attributing
+  // existing text from other authors and avoids whitespace destruction.
+
+  function wrapCurrentNode() {
     if (!CURRENT_USER) return;
-    var color  = colorForName(CURRENT_USER);
-    var now    = Date.now();
-    var walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT);
-    var toWrap = [];
-    var node;
-    while ((node = walker.nextNode())) {
-      if (node.parentElement.closest('[data-author]')) continue;
-      if (!node.textContent.trim()) continue;
-      toWrap.push(node);
-    }
-    toWrap.forEach(function (tn) {
-      var span = document.createElement('span');
-      span.dataset.author   = CURRENT_USER;
-      span.dataset.editTime = now;
-      span.dataset.color    = color;
-      span.className        = 'author-span';
-      span.style.background = hexToRgba(color, 0.18);
-      tn.parentNode.insertBefore(span, tn);
-      span.appendChild(tn);
-    });
+    var sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    var node = sel.getRangeAt(0).startContainer;
+    // Walk up to find a text node
+    if (node.nodeType !== Node.TEXT_NODE) return;
+    // Skip if already inside an author span
+    if (node.parentElement.closest('[data-author]')) return;
+    // Skip empty nodes
+    if (!node.textContent.trim()) return;
+
+    var color = colorForName(CURRENT_USER);
+    var span  = document.createElement('span');
+    span.dataset.author = CURRENT_USER;
+    span.dataset.color  = color;
+    span.className      = 'author-span';
+    span.style.background = hexToRgba(color, 0.18);
+
+    // Wrap just this single text node
+    node.parentNode.insertBefore(span, node);
+    span.appendChild(node);
+
+    // Restore caret to end of the span
+    var range = document.createRange();
+    range.selectNodeContents(span);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
-  // On page load: re-apply colours to all existing author spans from saved content
+  // On page load: re-apply colours to all existing [data-author] spans
   function applyAuthorColours() {
     editorEl.querySelectorAll('[data-author]').forEach(function (span) {
       var author = span.dataset.author;
@@ -102,7 +113,7 @@
 
   applyAuthorColours();
 
-  var debouncedWrap = debounce(wrapNewTextWithAuthor, 1500);
+  var debouncedWrap = debounce(wrapCurrentNode, 400);
 
   /* ── Save ─────────────────────────────────────────────────────────────── */
   function save() {

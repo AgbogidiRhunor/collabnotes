@@ -733,13 +733,15 @@ img { display: block; max-width: 100%; }
 .note-editor {
   flex: 1;
   padding: 0.5rem 3rem 3rem;
-  overflow-y: auto;  /* scroll here */
+  overflow-y: auto;
   font-size: 1rem;
   line-height: 1.8;
   color: var(--text);
   outline: none;
   caret-color: var(--accent);
-  min-height: 0;     /* required so flex doesn't block scroll */
+  min-height: 0;
+  white-space: pre-wrap;     /* preserve spaces and line breaks */
+  word-break: break-word;    /* prevent long words from overflowing */
 }
 .note-editor:empty::before {
   content: attr(data-placeholder);
