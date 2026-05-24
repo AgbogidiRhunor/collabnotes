@@ -825,12 +825,11 @@ img { display: block; max-width: 100%; }
 .note-editor b,
 .prose strong { font-weight: 600; }
 
-/* Author highlight spans */
+/* Author highlight spans — background set inline by JS via hexToRgba() */
 .author-span {
-  background: color-mix(in srgb, var(--author-color) 18%, transparent);
   border-radius: 2px;
   position: relative;
-  cursor: default;
+  cursor: text;
 }
 
 /* Viewer preview — for history page */
@@ -1119,10 +1118,6 @@ img { display: block; max-width: 100%; }
 .collabs-manage-link { font-size: 0.78rem; color: var(--accent); }
 .collabs-manage-link:hover { text-decoration: underline; }
 
-/* ── Author spans — no background, tooltip only via JS ───────────────────── */
-.author-span { cursor: text; }
-/* Tooltip on hover is JS-driven (editor.js) — follows the cursor */
-
 /* ── Pending invites section (notes list) ───────────────────────────────── */
 .invites-section {
   background: var(--bg-surface);
@@ -1215,6 +1210,3 @@ img { display: block; max-width: 100%; }
   cursor: not-allowed;
   opacity: 0.7;
 }
-
-
-

@@ -2,28 +2,35 @@
   'use strict';
 
   /* ── DOM ──────────────────────────────────────────────────────────────── */
-  const editorEl     = document.getElementById('note-editor');
-  const titleEl      = document.getElementById('note-title');
-  const contentField = document.getElementById('note-content-field');
-  const noteForm     = document.getElementById('note-form');
-  const saveStatus   = document.getElementById('save-status');
-  const saveBtn      = document.getElementById('save-btn');
-  const collabsBtn   = document.getElementById('collabs-btn');
-  const collabsPanel = document.getElementById('collabs-panel');
+  var editorEl      = document.getElementById('note-editor');
+  var titleEl       = document.getElementById('note-title');
+  var contentField  = document.getElementById('note-content-field');
+  var noteForm      = document.getElementById('note-form');
+  var saveStatus    = document.getElementById('save-status');
+  var saveBtn       = document.getElementById('save-btn');
+  var collabsBtn    = document.getElementById('collabs-btn');
+  var collabsPanel  = document.getElementById('collabs-panel');
+  var modeToggle    = document.getElementById('mode-toggle');
+  var modeIconRead  = document.getElementById('mode-icon-read');
+  var modeIconEdit  = document.getElementById('mode-icon-edit');
+  var modeLabel     = document.getElementById('mode-label');
+  var formatToolbar = document.getElementById('format-toolbar');
+  var editorPage    = document.getElementById('editor-page');
 
   if (!editorEl || !noteForm) return;
 
   /* ── Meta ─────────────────────────────────────────────────────────────── */
-  const CAN_EDIT     = editorEl.getAttribute('contenteditable') === 'true';
-  const CAN_RENAME   = (document.querySelector('meta[name="can-rename"]') || {}).content === 'true';
-  const CURRENT_USER = (document.querySelector('meta[name="current-user"]') || {}).content || '';
+  var CAN_EDIT     = editorEl.getAttribute('contenteditable') === 'true';
+  var CAN_RENAME   = (document.querySelector('meta[name="can-rename"]') || {}).content === 'true';
+  var CURRENT_USER = (document.querySelector('meta[name="current-user"]') || {}).content || '';
 
-  let isDirty  = false;
-  let isSaving = false;
+  var isDirty  = false;
+  var isSaving = false;
+  var isEditMode = true; // start in edit mode
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
   function debounce(fn, ms) {
-    let t;
+    var t;
     return function () { clearTimeout(t); t = setTimeout(fn, ms); };
   }
 
@@ -40,6 +47,63 @@
     if (saveBtn) saveBtn.classList.add('btn-primary--pulse');
   }
 
+  /* ── Author colours ───────────────────────────────────────────────────── */
+  var AUTHOR_PALETTE = ['#c8a97a', '#6fcf97', '#56b4e9', '#bb8fce'];
+
+  function colorForName(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    return AUTHOR_PALETTE[Math.abs(h) % AUTHOR_PALETTE.length];
+  }
+
+  function hexToRgba(hex, alpha) {
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  /* ── Author wrapping (edit mode only) ────────────────────────────────── */
+  function wrapNewTextWithAuthor() {
+    if (!CURRENT_USER) return;
+    var color  = colorForName(CURRENT_USER);
+    var now    = Date.now();
+    var walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT);
+    var toWrap = [];
+    var node;
+    while ((node = walker.nextNode())) {
+      if (node.parentElement.closest('[data-author]')) continue;
+      if (!node.textContent.trim()) continue;
+      toWrap.push(node);
+    }
+    toWrap.forEach(function (tn) {
+      var span = document.createElement('span');
+      span.dataset.author   = CURRENT_USER;
+      span.dataset.editTime = now;
+      span.dataset.color    = color;
+      span.className        = 'author-span';
+      span.style.background = hexToRgba(color, 0.18);
+      tn.parentNode.insertBefore(span, tn);
+      span.appendChild(tn);
+    });
+  }
+
+  // On page load: re-apply colours to all existing author spans from saved content
+  function applyAuthorColours() {
+    editorEl.querySelectorAll('[data-author]').forEach(function (span) {
+      var author = span.dataset.author;
+      if (!author) return;
+      var color = colorForName(author);
+      span.dataset.color    = color;
+      span.style.background = hexToRgba(color, 0.18);
+      if (!span.classList.contains('author-span')) span.classList.add('author-span');
+    });
+  }
+
+  applyAuthorColours();
+
+  var debouncedWrap = debounce(wrapNewTextWithAuthor, 1500);
+
   /* ── Save ─────────────────────────────────────────────────────────────── */
   function save() {
     if (!CAN_EDIT || isSaving) return;
@@ -54,7 +118,7 @@
     noteForm.submit();
   }
 
-  /* ── Cursor-following tooltip (shows author name on hover) ───────────── */
+  /* ── Cursor-following tooltip ────────────────────────────────────────── */
   var tooltip = document.createElement('div');
   tooltip.style.cssText = [
     'position:fixed',
@@ -77,12 +141,10 @@
   editorEl.addEventListener('mouseover', function (e) {
     if (!isEditMode) { tooltip.style.display = 'none'; return; }
     var span = e.target.closest('[data-author]');
-    if (!span || !span.dataset.author) {
-      tooltip.style.display = 'none';
-      return;
-    }
+    if (!span || !span.dataset.author) { tooltip.style.display = 'none'; return; }
+    var color = span.dataset.color || colorForName(span.dataset.author);
     tooltip.textContent   = span.dataset.author;
-    tooltip.style.color   = '#c8a97a';
+    tooltip.style.color   = color;
     tooltip.style.display = 'block';
   });
 
@@ -105,9 +167,45 @@
     tooltip.style.top  = y + 'px';
   });
 
+  /* ── Edit / Read mode toggle ─────────────────────────────────────────── */
+  function setEditMode(edit) {
+    isEditMode = edit;
+
+    if (edit) {
+      // Restore edit mode
+      editorEl.setAttribute('contenteditable', 'true');
+      editorEl.classList.remove('note-editor--readonly');
+      if (formatToolbar) formatToolbar.style.display = '';
+      if (saveBtn)       saveBtn.style.display = '';
+      if (editorPage)    editorPage.classList.remove('read-mode');
+      if (modeIconRead)  modeIconRead.style.display = '';
+      if (modeIconEdit)  modeIconEdit.style.display = 'none';
+      if (modeLabel)     modeLabel.textContent = 'Read';
+      if (modeToggle)    modeToggle.title = 'Switch to read mode';
+      // Reapply author colours
+      applyAuthorColours();
+    } else {
+      // Enter read mode — strip colours, disable editing
+      editorEl.removeAttribute('contenteditable');
+      editorEl.classList.add('note-editor--readonly');
+      if (formatToolbar) formatToolbar.style.display = 'none';
+      if (saveBtn)       saveBtn.style.display = 'none';
+      if (editorPage)    editorPage.classList.add('read-mode');
+      if (modeIconRead)  modeIconRead.style.display = 'none';
+      if (modeIconEdit)  modeIconEdit.style.display = '';
+      if (modeLabel)     modeLabel.textContent = 'Edit';
+      if (modeToggle)    modeToggle.title = 'Switch to edit mode';
+      tooltip.style.display = 'none';
+    }
+  }
+
+  if (modeToggle && CAN_EDIT) {
+    modeToggle.addEventListener('click', function () { setEditMode(!isEditMode); });
+  }
+
   /* ── Editor events ────────────────────────────────────────────────────── */
   if (CAN_EDIT) {
-    editorEl.addEventListener('input', function () { markDirty(); });
+    editorEl.addEventListener('input', function () { markDirty(); debouncedWrap(); });
 
     if (titleEl && CAN_RENAME) titleEl.addEventListener('input', markDirty);
 
@@ -147,53 +245,6 @@
 
   editorEl.addEventListener('keyup', syncToolbar);
   editorEl.addEventListener('mouseup', syncToolbar);
-
-  /* ── Edit / Read mode toggle ─────────────────────────────────────────── */
-  var modeToggle   = document.getElementById('mode-toggle');
-  var modeIconRead = document.getElementById('mode-icon-read');
-  var modeIconEdit = document.getElementById('mode-icon-edit');
-  var modeLabel    = document.getElementById('mode-label');
-  var formatToolbar = document.getElementById('format-toolbar');
-  var editorPage   = document.getElementById('editor-page');
-
-  // Start in edit mode (default)
-  var isEditMode = true;
-
-  function setEditMode(edit) {
-    isEditMode = edit;
-
-    if (edit) {
-      // Switch TO edit mode
-      editorEl.setAttribute('contenteditable', 'true');
-      editorEl.classList.remove('note-editor--readonly');
-      if (formatToolbar) formatToolbar.style.display = '';
-      if (saveBtn)       saveBtn.style.display = '';
-      if (editorPage)    editorPage.classList.remove('read-mode');
-      if (modeIconRead)  modeIconRead.style.display = '';
-      if (modeIconEdit)  modeIconEdit.style.display = 'none';
-      if (modeLabel)     modeLabel.textContent = 'Read';
-      if (modeToggle)    modeToggle.title = 'Switch to read mode';
-      tooltip.style.display = 'none'; // hide any stale tooltip
-    } else {
-      // Switch TO read mode
-      editorEl.removeAttribute('contenteditable');
-      editorEl.classList.add('note-editor--readonly');
-      if (formatToolbar) formatToolbar.style.display = 'none';
-      if (saveBtn)       saveBtn.style.display = 'none';
-      if (editorPage)    editorPage.classList.add('read-mode');
-      if (modeIconRead)  modeIconRead.style.display = 'none';
-      if (modeIconEdit)  modeIconEdit.style.display = '';
-      if (modeLabel)     modeLabel.textContent = 'Edit';
-      if (modeToggle)    modeToggle.title = 'Switch to edit mode';
-      tooltip.style.display = 'none';
-    }
-  }
-
-  if (modeToggle && CAN_EDIT) {
-    modeToggle.addEventListener('click', function () {
-      setEditMode(!isEditMode);
-    });
-  }
 
   /* ── Collaborators panel ──────────────────────────────────────────────── */
   if (collabsBtn && collabsPanel) {
