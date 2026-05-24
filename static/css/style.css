@@ -707,12 +707,13 @@ img { display: block; max-width: 100%; }
   flex-shrink: 0;
 }
 
-/* Editor body */
+/* Editor body — flex column, lets note-editor grow and scroll */
 .editor-body {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  flex: 1;          /* fill remaining height inside editor-page */
+  overflow: hidden; /* editor-body clips, note-editor scrolls internally */
+  min-height: 0;    /* required for flex children to shrink correctly */
 }
 .note-title-field {
   font-family: var(--font-serif);
@@ -732,12 +733,13 @@ img { display: block; max-width: 100%; }
 .note-editor {
   flex: 1;
   padding: 0.5rem 3rem 3rem;
-  overflow-y: auto;
+  overflow-y: auto;  /* scroll here */
   font-size: 1rem;
   line-height: 1.8;
   color: var(--text);
   outline: none;
   caret-color: var(--accent);
+  min-height: 0;     /* required so flex doesn't block scroll */
 }
 .note-editor:empty::before {
   content: attr(data-placeholder);
@@ -745,6 +747,34 @@ img { display: block; max-width: 100%; }
   pointer-events: none;
 }
 .note-editor--readonly { cursor: default; }
+
+/* ── Mode toggle button ──────────────────────────────────────────────────── */
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background var(--dur), border-color var(--dur), color var(--dur);
+  flex-shrink: 0;
+}
+.mode-toggle:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* ── Read mode — hide author span backgrounds ────────────────────────────── */
+.editor-page.read-mode .author-span {
+  background: transparent !important;
+}
+/* Also hide the tooltip in read mode */
+.editor-page.read-mode ~ #author-tooltip { display: none !important; }
 
 /* Rich text styles inside the editor */
 .note-editor h1,
@@ -1185,3 +1215,6 @@ img { display: block; max-width: 100%; }
   cursor: not-allowed;
   opacity: 0.7;
 }
+
+
+

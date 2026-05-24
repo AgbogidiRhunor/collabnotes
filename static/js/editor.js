@@ -43,8 +43,6 @@
   /* ── Save ─────────────────────────────────────────────────────────────── */
   function save() {
     if (!CAN_EDIT || isSaving) return;
-    fadeOldAuthorSpans();
-    wrapNewTextWithAuthor();
     if (contentField) contentField.value = editorEl.innerHTML;
     isSaving = true;
     isDirty  = false;
@@ -56,83 +54,7 @@
     noteForm.submit();
   }
 
-  /* ── Author colours ───────────────────────────────────────────────────── */
-  // 4 distinct soft colours — one per collaborator, deterministic by name
-  const AUTHOR_PALETTE = ['#c8a97a', '#6fcf97', '#56b4e9', '#bb8fce'];
-  const FADE_AFTER_MS  = 5 * 60 * 1000; // 5 minutes
-
-  function colorForName(name) {
-    var h = 0;
-    for (var i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-    return AUTHOR_PALETTE[Math.abs(h) % AUTHOR_PALETTE.length];
-  }
-
-  /* ── Author highlighting ──────────────────────────────────────────────── */
-  function wrapNewTextWithAuthor() {
-    if (!CURRENT_USER) return;
-    var color  = colorForName(CURRENT_USER);
-    var now    = Date.now();
-    var walker = document.createTreeWalker(editorEl, NodeFilter.SHOW_TEXT);
-    var toWrap = [];
-    var node;
-    while ((node = walker.nextNode())) {
-      if (node.parentElement.closest('[data-author]')) continue;
-      if (!node.textContent.trim()) continue;
-      toWrap.push(node);
-    }
-    toWrap.forEach(function (tn) {
-      var span = document.createElement('span');
-      span.dataset.author   = CURRENT_USER;
-      span.dataset.editTime = now;
-      span.dataset.color    = color; // store as data attr — readable without CSS vars
-      span.className        = 'author-span author-span--fresh';
-      span.style.background = hexToRgba(color, 0.18);
-      tn.parentNode.insertBefore(span, tn);
-      span.appendChild(tn);
-    });
-  }
-
-  function fadeOldAuthorSpans() {
-    var now = Date.now();
-    editorEl.querySelectorAll('.author-span[data-edit-time]').forEach(function (span) {
-      if (now - parseInt(span.dataset.editTime || '0', 10) > FADE_AFTER_MS) {
-        span.classList.remove('author-span--fresh');
-        span.classList.add('author-span--faded');
-        span.style.background = 'transparent';
-      }
-    });
-  }
-
-  // Convert hex colour to rgba string — avoids color-mix() browser issues
-  function hexToRgba(hex, alpha) {
-    var r = parseInt(hex.slice(1, 3), 16);
-    var g = parseInt(hex.slice(3, 5), 16);
-    var b = parseInt(hex.slice(5, 7), 16);
-    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
-  }
-
-  // On page load: re-apply colours to all existing author spans in saved content
-  editorEl.querySelectorAll('[data-author]').forEach(function (span) {
-    var author = span.dataset.author;
-    if (!author) return;
-    var color = colorForName(author);
-    span.dataset.color = color;
-    // Only apply background if fresh (not already faded)
-    if (span.classList.contains('author-span--faded')) {
-      span.style.background = 'transparent';
-    } else {
-      span.style.background = hexToRgba(color, 0.18);
-      if (!span.classList.contains('author-span--fresh')) {
-        span.classList.add('author-span', 'author-span--fresh');
-      }
-    }
-  });
-
-  // Run fade check immediately and every 30s
-  fadeOldAuthorSpans();
-  setInterval(fadeOldAuthorSpans, 30000);
-
-  /* ── Tooltip (JS-driven, follows cursor, single instance) ────────────── */
+  /* ── Cursor-following tooltip (shows author name on hover) ───────────── */
   var tooltip = document.createElement('div');
   tooltip.style.cssText = [
     'position:fixed',
@@ -149,24 +71,22 @@
     'box-shadow:0 4px 12px rgba(0,0,0,0.4)',
     'border:1px solid rgba(255,255,255,0.12)',
     'background:#1e1e23',
-    'color:#c8a97a',
   ].join(';');
   document.body.appendChild(tooltip);
 
   editorEl.addEventListener('mouseover', function (e) {
+    if (!isEditMode) { tooltip.style.display = 'none'; return; }
     var span = e.target.closest('[data-author]');
     if (!span || !span.dataset.author) {
       tooltip.style.display = 'none';
       return;
     }
-    var color = span.dataset.color || colorForName(span.dataset.author);
     tooltip.textContent   = span.dataset.author;
-    tooltip.style.color   = color;
+    tooltip.style.color   = '#c8a97a';
     tooltip.style.display = 'block';
   });
 
   editorEl.addEventListener('mouseout', function (e) {
-    // Only hide if we're leaving the editor entirely or moving to a non-author element
     var to = e.relatedTarget;
     if (!to || !to.closest || !to.closest('[data-author]')) {
       tooltip.style.display = 'none';
@@ -178,7 +98,6 @@
     var pad = 14;
     var x   = e.clientX + pad;
     var y   = e.clientY - 34;
-    // Clamp inside viewport
     if (x + tooltip.offsetWidth  > window.innerWidth  - 8) x = e.clientX - tooltip.offsetWidth  - pad;
     if (y < 8)                                              y = e.clientY + pad;
     if (y + tooltip.offsetHeight > window.innerHeight - 8) y = window.innerHeight - tooltip.offsetHeight - 8;
@@ -186,12 +105,9 @@
     tooltip.style.top  = y + 'px';
   });
 
-  /* ── Debounced wrap — defined here so it's available to editor input ── */
-  var debouncedWrap = debounce(wrapNewTextWithAuthor, 1500);
-
   /* ── Editor events ────────────────────────────────────────────────────── */
   if (CAN_EDIT) {
-    editorEl.addEventListener('input', function () { markDirty(); debouncedWrap(); });
+    editorEl.addEventListener('input', function () { markDirty(); });
 
     if (titleEl && CAN_RENAME) titleEl.addEventListener('input', markDirty);
 
@@ -231,6 +147,53 @@
 
   editorEl.addEventListener('keyup', syncToolbar);
   editorEl.addEventListener('mouseup', syncToolbar);
+
+  /* ── Edit / Read mode toggle ─────────────────────────────────────────── */
+  var modeToggle   = document.getElementById('mode-toggle');
+  var modeIconRead = document.getElementById('mode-icon-read');
+  var modeIconEdit = document.getElementById('mode-icon-edit');
+  var modeLabel    = document.getElementById('mode-label');
+  var formatToolbar = document.getElementById('format-toolbar');
+  var editorPage   = document.getElementById('editor-page');
+
+  // Start in edit mode (default)
+  var isEditMode = true;
+
+  function setEditMode(edit) {
+    isEditMode = edit;
+
+    if (edit) {
+      // Switch TO edit mode
+      editorEl.setAttribute('contenteditable', 'true');
+      editorEl.classList.remove('note-editor--readonly');
+      if (formatToolbar) formatToolbar.style.display = '';
+      if (saveBtn)       saveBtn.style.display = '';
+      if (editorPage)    editorPage.classList.remove('read-mode');
+      if (modeIconRead)  modeIconRead.style.display = '';
+      if (modeIconEdit)  modeIconEdit.style.display = 'none';
+      if (modeLabel)     modeLabel.textContent = 'Read';
+      if (modeToggle)    modeToggle.title = 'Switch to read mode';
+      tooltip.style.display = 'none'; // hide any stale tooltip
+    } else {
+      // Switch TO read mode
+      editorEl.removeAttribute('contenteditable');
+      editorEl.classList.add('note-editor--readonly');
+      if (formatToolbar) formatToolbar.style.display = 'none';
+      if (saveBtn)       saveBtn.style.display = 'none';
+      if (editorPage)    editorPage.classList.add('read-mode');
+      if (modeIconRead)  modeIconRead.style.display = 'none';
+      if (modeIconEdit)  modeIconEdit.style.display = '';
+      if (modeLabel)     modeLabel.textContent = 'Edit';
+      if (modeToggle)    modeToggle.title = 'Switch to edit mode';
+      tooltip.style.display = 'none';
+    }
+  }
+
+  if (modeToggle && CAN_EDIT) {
+    modeToggle.addEventListener('click', function () {
+      setEditMode(!isEditMode);
+    });
+  }
 
   /* ── Collaborators panel ──────────────────────────────────────────────── */
   if (collabsBtn && collabsPanel) {
